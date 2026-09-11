@@ -46,3 +46,6 @@ class Terceiro:
     @data_criacao.setter
     def data_criacao(self, nova_data_criacao):
         self._data_criacao = nova_data_criacao
+
+
+    
