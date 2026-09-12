@@ -48,4 +48,16 @@ class Terceiro:
         self._data_criacao = nova_data_criacao
 
 
-    
+    def eh_valido(self):
+        if not self._nome or not self._nome.strip():
+            return false,
+        if not self._relacao or not self._relacao.strip():
+            return false,
+        return True,
+
+    def formartar_exibicao(self):
+        return f"{self._nome} ({self._relacao})"
+        return True,
+
+    def __repr__(self):
+        return f"Terceiro(id={self._id}, nome='{self._nome}', relacao='{self._relacao}')"
