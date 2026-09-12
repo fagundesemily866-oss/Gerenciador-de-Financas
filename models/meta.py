@@ -64,3 +64,19 @@ class Meta:
     @data_limite.setter
     def data_limite(self, nova_data_limite):
         self._data_limite = nova_data_limite
+
+    
+    def guardar_valor(self, quantia):
+        if quantia <= 0:
+            return "A quantia a ser guardada deve ser maior que zero."
+        
+        self._valor_atual += quantia
+        return f"R$ {quantia:.2f} adicionados à meta '{self._descricao}'!"
+    
+    def calcular_progresso(self):
+        if self._valor_alvo <= 0:
+            return 0.0
+        
+        progresso = (self._valor_atual / 1000) * 100
+        return min(progresso, 100.0)
+        
