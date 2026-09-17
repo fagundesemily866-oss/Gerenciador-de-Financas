@@ -1,8 +1,23 @@
+from datetime import date
+
+
 class Lancamento:
 
-    def __init__(self, id, usuario_id, categoria_id, terceiro_id, descricao,
-                 valor, tipo, status,data_vencimento, data_pagamento,
-                 comprovante_url, data_criacao):
+    def __init__(
+        self,
+        id,
+        usuario_id,
+        categoria_id,
+        terceiro_id,
+        descricao,
+        valor,
+        tipo,
+        status,
+        data_vencimento,
+        data_pagamento=None,
+        comprovante_url=None,
+        data_criacao=None,
+    ):
         self._id = id
         self._usuario_id = usuario_id
         self._categoria_id = categoria_id
@@ -14,8 +29,9 @@ class Lancamento:
         self._data_vencimento = data_vencimento
         self._data_pagamento = data_pagamento
         self._comprovante_url = comprovante_url
-        self._data_criacao = data_criacao
+        self._data_criacao = data_criacao or date.today()
 
+    # --- PROPERTIES (GETTERS / SETTERS) ---
     @property
     def id(self):
         return self._id
@@ -111,3 +127,35 @@ class Lancamento:
     @data_criacao.setter
     def data_criacao(self, nova_data_criacao):
         self._data_criacao = nova_data_criacao
+
+    # --- MÉTODOS DE NEGÓCIO ---
+    def efetuar_pagamento(
+        self, data_pagamento=None, comprovante_url=None
+    ):
+        """Atualiza o status, data de pagamento e salva o comprovante."""
+        self._status = "PAGO" if self._tipo == "DESPESA" else "RECEBIDO"
+        self._data_pagamento = data_pagamento or date.today()
+
+        if comprovante_url:
+            self._comprovante_url = comprovante_url
+
+        return (
+            f"Lançamento '{self._descricao}' atualizado para {self._status}."
+        )
+
+    def verificar_atraso(self):
+        """Verifica se a conta venceu sem ser paga."""
+        if self._status == "PENDENTE" and self._data_vencimento < date.today():
+            self._status = "ATRASADO"
+            return True
+        return False
+
+    def __repr__(self):
+        return (
+            f"Lancamento(id={self._id}, usuario_id={self._usuario_id}, "
+            f"categoria_id={self._categoria_id}, terceiro_id={self._terceiro_id}, "
+            f"descricao='{self._descricao}', valor={self._valor}, tipo='{self._tipo}', "
+            f"status='{self._status}', data_vencimento={self._data_vencimento}, "
+            f"data_pagamento={self._data_pagamento}, comprovante_url='{self._comprovante_url}', "
+            f"data_criacao={self._data_criacao})"
+        )

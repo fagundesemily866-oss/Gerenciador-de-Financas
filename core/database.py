@@ -1,64 +1,60 @@
-import mysql.connector
+"""
+Camada de infraestrutura de dados.
+
+Responsável por abrir/gerenciar a conexão com o banco de dados SQLite
+e garantir que o schema (estrutura de tabelas) exista antes de qualquer uso.
+"""
 import os
-from dotenv import load_dotenv
+import sqlite3
+from typing import Optional
 
 
 class Database:
+    """Gerencia a conexão e a estrutura do banco de dados SQLite."""
 
-    load_dotenv()
+    def __init__(self, db_path: str = "data/finance.db"):
+        self.db_path = db_path
+        self._connection: Optional[sqlite3.Connection] = None
+        self._ensure_directory_exists()
+        self._create_schema()
 
-    def conectar(self):
+    def _ensure_directory_exists(self) -> None:
+        """Cria o diretório do banco de dados caso ele ainda não exista."""
+        directory = os.path.dirname(self.db_path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
 
-        host = os.getenv("DB_HOST")
-        port = os.getenv("DB_PORT")
-        database = os.getenv("DB_NAME")
-        user = os.getenv("DB_USER")
-        password = os.getenv("DB_PASSWORD")
+    def get_connection(self) -> sqlite3.Connection:
+        """
+        Retorna a conexão ativa com o banco de dados.
+        A conexão é criada de forma "lazy" (apenas na primeira chamada).
+        """
+        if self._connection is None:
+            self._connection = sqlite3.connect(self.db_path)
+            self._connection.execute("PRAGMA foreign_keys = ON")
+            # Permite acessar colunas por nome (ex.: row["description"])
+            self._connection.row_factory = sqlite3.Row
+        return self._connection
 
-        faltando = [
-            nome for nome, valor in [
-                ("DB_HOST", host),
-                ("DB_PORT", port),
-                ("DB_NAME", database),
-                ("DB_USER", user),
-                ("DB_PASSWORD", password),
-            ]
-            if valor is None
-        ]
-
-        if faltando:
-            raise RuntimeError(
-                "Variáveis de ambiente ausentes no .env: "
-                + ", ".join(faltando)
-                + ". Verifique se o arquivo .env está na raiz do projeto "
-                  "(mesma pasta do main.py) e se todas as chaves estão preenchidas."
+    def _create_schema(self) -> None:
+        """Cria as tabelas necessárias caso ainda não existam."""
+        connection = self.get_connection()
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS transactions (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                description TEXT    NOT NULL,
+                value       REAL    NOT NULL,
+                type        TEXT    NOT NULL CHECK (type IN ('Receita', 'Despesa')),
+                category    TEXT    NOT NULL,
+                date        TEXT    NOT NULL
             )
+            """
+        )
+        connection.commit()
 
-        try:
-            porta = int(port)
-        except ValueError:
-            raise RuntimeError(
-                f"DB_PORT inválido no .env: '{port}'. Deve ser um número (ex: 3306)."
-            )
-
-        try:
-            conexao = mysql.connector.connect(
-                host=host,
-                port=porta,
-                database=database,
-                user=user,
-                password=password
-            )
-            return conexao
-
-        except mysql.connector.Error as e:
-            raise RuntimeError(
-                f"Falha ao conectar no banco '{database}' em {host}:{porta} "
-                f"como '{user}': {e}"
-            )
-
-    def desconectar(self, cursor=None, conexao=None):
-        if cursor:
-            cursor.close()
-        if conexao and conexao.is_connected():
-            conexao.close()
+    def close(self) -> None:
+        """Encerra a conexão com o banco de dados, se estiver aberta."""
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
