@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+
+# Ambientes virtuais
+venv/
+env/
+.venv/
+
+# Banco de dados (gerado automaticamente em tempo de execução)
+data/finance.db
+
+# IDE
+.vscode/
+.idea/
