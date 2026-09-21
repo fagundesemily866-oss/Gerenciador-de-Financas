@@ -225,15 +225,20 @@ class MetaView(ctk.CTkFrame):
             self.entry_atual.delete(0, "end")
             self.entry_prazo.delete(0, "end")
             self.entry_data_limite.delete(0, "end")
-            self.atualizar_dados()
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.sucesso(f"Meta '{desc}' criada!")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.sucesso(f"Meta '{desc}' criada!")
+            except Exception:
+                pass
         except Exception as e:
             self._mostrar_feedback(f"Erro ao salvar: {e}", "#F38BA8")
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.erro(f"Erro ao salvar meta: {e}")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.erro(f"Erro ao salvar meta: {e}")
+            except Exception:
+                pass
 
     def _mostrar_feedback(self, texto: str, cor: str):
         self.lbl_feedback.configure(text=texto, text_color=cor)

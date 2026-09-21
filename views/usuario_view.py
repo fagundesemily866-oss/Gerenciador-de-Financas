@@ -308,17 +308,22 @@ class UsuarioView(ctk.CTkFrame):
             self.lbl_feedback_perfil.configure(
                 text="✓ Dados atualizados com sucesso!", text_color="#A6E3A1"
             )
-            self.atualizar_dados()
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.sucesso("Perfil atualizado com sucesso!")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.sucesso("Perfil atualizado com sucesso!")
+            except Exception:
+                pass
         except Exception as e:
             self.lbl_feedback_perfil.configure(
                 text=f"Erro ao atualizar: {e}", text_color="#F38BA8"
             )
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.erro(f"Erro ao atualizar perfil: {e}")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.erro(f"Erro ao atualizar perfil: {e}")
+            except Exception:
+                pass
 
     def _alterar_senha(self):
         atual = self.campo_senha_atual.get()
@@ -354,16 +359,22 @@ class UsuarioView(ctk.CTkFrame):
             self.campo_senha_nova.delete(0, "end")
             self.campo_senha_confirma.delete(0, "end")
             self.atualizar_dados()
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.sucesso("Senha alterada com sucesso!")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.sucesso("Senha alterada com sucesso!")
+            except Exception:
+                pass
         except Exception as e:
             self.lbl_feedback_senha.configure(
                 text=f"Erro ao alterar senha: {e}", text_color="#F38BA8"
             )
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.erro(f"Erro ao alterar senha: {e}")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.erro(f"Erro ao alterar senha: {e}")
+            except Exception:
+                pass
 
     def atualizar_dados(self):
         """Recarrega os dados do usuário a partir do SQLite."""

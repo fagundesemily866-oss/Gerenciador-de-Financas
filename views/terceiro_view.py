@@ -179,15 +179,20 @@ class TerceiroView(ctk.CTkFrame):
             self.dao.inserir(nome=nome, relacao=relacao)
             self._mostrar_feedback(f"✓ '{nome}' cadastrado!", "#A6E3A1")
             self.entry_nome.delete(0, "end")
-            self.atualizar_dados()
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.sucesso(f"Terceiro '{nome}' cadastrado!")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.sucesso(f"Terceiro '{nome}' cadastrado!")
+            except Exception:
+                pass
         except Exception as e:
             self._mostrar_feedback(f"Erro ao salvar: {e}", "#F38BA8")
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.erro(f"Erro ao salvar terceiro: {e}")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.erro(f"Erro ao salvar terceiro: {e}")
+            except Exception:
+                pass
 
     def _mostrar_feedback(self, texto: str, cor: str):
         self.lbl_feedback.configure(text=texto, text_color=cor)
@@ -195,9 +200,12 @@ class TerceiroView(ctk.CTkFrame):
     def _excluir_terceiro(self, terceiro_id: int):
         self.dao.excluir(terceiro_id)
         self.atualizar_dados()
-        notif = GerenciadorNotificacoes.obter_instancia()
-        if notif:
-            notif.sucesso("Terceiro excluído com sucesso!")
+        try:
+            notif = GerenciadorNotificacoes.obter_instancia()
+            if notif:
+                notif.sucesso("Terceiro excluído com sucesso!")
+        except Exception:
+            pass
 
     def atualizar_dados(self):
         """Recarrega os terceiros cadastrados no banco."""

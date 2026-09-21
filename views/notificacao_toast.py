@@ -66,7 +66,7 @@ class _ToastNotificacao(ctk.CTkFrame):
         "ia": "Assistente IA",
     }
 
-    def __init__(self, parent, tipo: str, mensagem: str, gerenciador, duracao_ms: int = 4000):
+    def __init__(self, parent, tipo: str, mensagem: str, gerenciador, duracao_ms: int = 4000, largura: int = 320):
         cores = self.CORES.get(tipo, self.CORES["info"])
 
         super().__init__(
@@ -75,6 +75,7 @@ class _ToastNotificacao(ctk.CTkFrame):
             corner_radius=12,
             border_width=2,
             border_color=cores["borda"],
+            width=largura,
         )
 
         self.gerenciador = gerenciador
@@ -200,6 +201,7 @@ class GerenciadorNotificacoes:
             tipo=tipo,
             mensagem=mensagem,
             gerenciador=self,
+            largura=self._largura_toast,
         )
 
         self._toasts.append(toast)
@@ -220,13 +222,12 @@ class GerenciadorNotificacoes:
         y_offset = self._margem_topo
 
         for toast in self._toasts:
-            # Posiciona no canto superior direito usando place
+            # Posiciona no canto superior direito usando place (sem width/height aqui)
             toast.place(
                 relx=1.0,
                 x=-(self._margem_direita),
                 y=y_offset,
                 anchor="ne",
-                width=self._largura_toast,
             )
             toast.lift()  # Garantir que fica acima de tudo
 

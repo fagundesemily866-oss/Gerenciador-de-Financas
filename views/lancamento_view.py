@@ -482,21 +482,30 @@ class LancamentoView(ctk.CTkFrame):
             self.mostrar_mensagem("✓ Lançamento salvo com sucesso!", "sucesso")
             self._limpar_campos()
             self.atualizar_dados()
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.sucesso(f"Lançamento '{descricao}' salvo!")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.sucesso(f"Lançamento '{descricao}' salvo!")
+            except Exception:
+                pass
         except Exception as e:
             self.mostrar_mensagem(f"Erro ao salvar: {e}", "erro")
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.erro(f"Erro ao salvar lançamento: {e}")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.erro(f"Erro ao salvar lançamento: {e}")
+            except Exception:
+                pass
 
     def _excluir_lancamento(self, lancamento_id: int):
         self.dao.excluir(lancamento_id)
         self.atualizar_dados()
-        notif = GerenciadorNotificacoes.obter_instancia()
-        if notif:
-            notif.sucesso("Lançamento excluído!")
+        try:
+            notif = GerenciadorNotificacoes.obter_instancia()
+            if notif:
+                notif.sucesso("Lançamento excluído!")
+        except Exception:
+            pass
 
     def mostrar_mensagem(self, texto, tipo):
         self.mensagem.configure(text=texto)

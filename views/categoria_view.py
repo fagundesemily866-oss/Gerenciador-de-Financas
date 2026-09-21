@@ -241,15 +241,20 @@ class CategoriaView(ctk.CTkFrame):
             self._mostrar_feedback(f"✓ Categoria '{nome}' criada!", "#A6E3A1")
             self.entry_nome.delete(0, "end")
             self.entry_limite.delete(0, "end")
-            self.atualizar_dados()
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.sucesso(f"Categoria '{nome}' cadastrada!")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.sucesso(f"Categoria '{nome}' cadastrada!")
+            except Exception:
+                pass
         except Exception as e:
             self._mostrar_feedback(f"Erro ao salvar: {e}", "#F38BA8")
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.erro(f"Erro ao salvar categoria: {e}")
+            try:
+                notif = GerenciadorNotificacoes.obter_instancia()
+                if notif:
+                    notif.erro(f"Erro ao salvar categoria: {e}")
+            except Exception:
+                pass
 
     def _inserir_categorias_padrao(self):
         padroes = [
