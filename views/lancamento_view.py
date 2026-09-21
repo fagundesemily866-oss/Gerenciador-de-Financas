@@ -118,25 +118,26 @@ class LancamentoView(ctk.CTkFrame):
     # FORMULÁRIO (ESQUERDA)
     # ==========================================================
     def _criar_formulario(self):
-        card_form = ctk.CTkFrame(
+        self.card_form = ctk.CTkFrame(
             self,
             corner_radius=15,
             fg_color="#1E1E2E",
             border_width=1,
-            border_color="#313244",
+            border_color="#4D2E3B",
         )
-        card_form.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
+        self.card_form.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
 
-        # Título
-        ctk.CTkLabel(
-            card_form,
-            text="➕  NOVO LANÇAMENTO",
+        # Título dinâmico
+        self.lbl_titulo_form = ctk.CTkLabel(
+            self.card_form,
+            text="➕  NOVA DESPESA",
             font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#A6ADC8",
-        ).pack(anchor="w", padx=20, pady=(15, 10))
+            text_color="#F38BA8",
+        )
+        self.lbl_titulo_form.pack(anchor="w", padx=20, pady=(15, 10))
 
         # SELETOR VISUAL DE TIPO (RECEITA / DESPESA) COM BOTÕES LADO A LADO
-        frame_tipo = ctk.CTkFrame(card_form, fg_color="transparent")
+        frame_tipo = ctk.CTkFrame(self.card_form, fg_color="transparent")
         frame_tipo.pack(fill="x", padx=20, pady=(0, 10))
         frame_tipo.grid_columnconfigure((0, 1), weight=1)
 
@@ -167,23 +168,24 @@ class LancamentoView(ctk.CTkFrame):
         self.btn_sel_receita.grid(row=0, column=1, sticky="ew", padx=(5, 0))
 
         # Descrição
-        ctk.CTkLabel(card_form, text="Descrição:", font=ctk.CTkFont(size=12)).pack(
-            anchor="w", padx=20, pady=(0, 2)
+        self.lbl_descricao = ctk.CTkLabel(
+            self.card_form, text="Descrição:", font=ctk.CTkFont(size=12)
         )
+        self.lbl_descricao.pack(anchor="w", padx=20, pady=(0, 2))
         self.descricao = ctk.CTkEntry(
-            card_form,
-            placeholder_text="Ex: Aluguel, Supermercado, Salário...",
+            self.card_form,
+            placeholder_text="Ex: Aluguel, Supermercado, Luz, Combustível...",
             fg_color="#181825",
             border_color="#313244",
         )
         self.descricao.pack(fill="x", padx=20, pady=(0, 8))
 
         # Campo Valor
-        ctk.CTkLabel(card_form, text="Valor (R$):", font=ctk.CTkFont(size=12)).pack(
+        ctk.CTkLabel(self.card_form, text="Valor (R$):", font=ctk.CTkFont(size=12)).pack(
             anchor="w", padx=20, pady=(0, 2)
         )
         self.valor = ctk.CTkEntry(
-            card_form,
+            self.card_form,
             placeholder_text="0.00",
             fg_color="#181825",
             border_color="#313244",
@@ -192,7 +194,7 @@ class LancamentoView(ctk.CTkFrame):
         self.valor.pack(fill="x", padx=20, pady=(0, 4))
 
         # Atalhos rápidos de valores (+10, +50, +100, +500)
-        chips_frame = ctk.CTkFrame(card_form, fg_color="transparent")
+        chips_frame = ctk.CTkFrame(self.card_form, fg_color="transparent")
         chips_frame.pack(fill="x", padx=20, pady=(0, 8))
         chips_frame.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
 
@@ -224,20 +226,23 @@ class LancamentoView(ctk.CTkFrame):
         btn_limpar_val.grid(row=0, column=4, padx=2, sticky="ew")
 
         # Linha dupla: Categoria e Terceiro
-        duo2 = ctk.CTkFrame(card_form, fg_color="transparent")
+        duo2 = ctk.CTkFrame(self.card_form, fg_color="transparent")
         duo2.pack(fill="x", padx=20, pady=(0, 8))
         duo2.grid_columnconfigure((0, 1), weight=1)
 
-        ctk.CTkLabel(duo2, text="Categoria:", font=ctk.CTkFont(size=12)).grid(
-            row=0, column=0, sticky="w", pady=(0, 2)
+        self.lbl_categoria = ctk.CTkLabel(
+            duo2, text="Categoria da Despesa:", font=ctk.CTkFont(size=12)
         )
-        ctk.CTkLabel(duo2, text="Terceiro (opcional):", font=ctk.CTkFont(size=12)).grid(
-            row=0, column=1, sticky="w", padx=(10, 0), pady=(0, 2)
+        self.lbl_categoria.grid(row=0, column=0, sticky="w", pady=(0, 2))
+
+        self.lbl_terceiro = ctk.CTkLabel(
+            duo2, text="Beneficiário / Fornecedor (opcional):", font=ctk.CTkFont(size=12)
         )
+        self.lbl_terceiro.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=(0, 2))
 
         self.categoria = ctk.CTkComboBox(
             duo2,
-            values=["Alimentação", "Transporte", "Moradia", "Salário", "Outros"],
+            values=["Alimentação", "Transporte", "Moradia", "Lazer", "Saúde", "Educação", "Outros"],
             fg_color="#181825",
             border_color="#313244",
             button_color="#313244",
@@ -254,16 +259,19 @@ class LancamentoView(ctk.CTkFrame):
         self.terceiro.grid(row=1, column=1, sticky="ew", padx=(10, 0))
 
         # Linha dupla: Vencimento e Status
-        duo3 = ctk.CTkFrame(card_form, fg_color="transparent")
+        duo3 = ctk.CTkFrame(self.card_form, fg_color="transparent")
         duo3.pack(fill="x", padx=20, pady=(0, 10))
         duo3.grid_columnconfigure((0, 1), weight=1)
 
-        ctk.CTkLabel(duo3, text="Data / Vencimento:", font=ctk.CTkFont(size=12)).grid(
-            row=0, column=0, sticky="w", pady=(0, 2)
+        self.lbl_data = ctk.CTkLabel(
+            duo3, text="Data / Vencimento:", font=ctk.CTkFont(size=12)
         )
-        ctk.CTkLabel(duo3, text="Status:", font=ctk.CTkFont(size=12)).grid(
-            row=0, column=1, sticky="w", padx=(10, 0), pady=(0, 2)
+        self.lbl_data.grid(row=0, column=0, sticky="w", pady=(0, 2))
+
+        self.lbl_status = ctk.CTkLabel(
+            duo3, text="Status do Pagamento:", font=ctk.CTkFont(size=12)
         )
+        self.lbl_status.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=(0, 2))
 
         self.data_vencimento = ctk.CTkEntry(
             duo3,
@@ -295,21 +303,21 @@ class LancamentoView(ctk.CTkFrame):
 
         # Feedback
         self.mensagem = ctk.CTkLabel(
-            card_form,
+            self.card_form,
             text="",
             font=ctk.CTkFont(size=12, weight="bold"),
         )
         self.mensagem.pack(fill="x", padx=20, pady=(0, 6))
 
         # Botões Salvar e Limpar lado a lado
-        btn_box = ctk.CTkFrame(card_form, fg_color="transparent")
+        btn_box = ctk.CTkFrame(self.card_form, fg_color="transparent")
         btn_box.pack(fill="x", padx=20, pady=(0, 15))
         btn_box.grid_columnconfigure(0, weight=3)
         btn_box.grid_columnconfigure(1, weight=1)
 
         self.btn_salvar = ctk.CTkButton(
             btn_box,
-            text="Salvar Lançamento",
+            text="Salvar Despesa",
             fg_color="#F38BA8",
             text_color="#1E1E2E",
             hover_color="#E07A97",
@@ -331,24 +339,95 @@ class LancamentoView(ctk.CTkFrame):
         )
         btn_limpar.grid(row=0, column=1, sticky="ew")
 
+        # Inicializa os textos, placeholders e categorias contextuais
+        self._selecionar_tipo("DESPESA")
+
+    def _atualizar_categorias_por_tipo(self, tipo: str):
+        """Atualiza dinamicamente as opções de categoria conforme Receita ou Despesa."""
+        tipo_busca = "Receita" if tipo == "RECEITA" else "Despesa"
+        try:
+            todas = self.cat_dao.listar_todas()
+            filtradas = [
+                c["nome"]
+                for c in todas
+                if c.get("tipo", "").strip().lower() == tipo_busca.lower()
+            ]
+        except Exception:
+            filtradas = []
+
+        if not filtradas:
+            if tipo == "RECEITA":
+                filtradas = ["Salário", "Rendimentos", "Vendas", "Freelance", "Bonificação", "Outras Receitas"]
+            else:
+                filtradas = ["Alimentação", "Transporte", "Moradia", "Lazer", "Saúde", "Educação", "Outras Despesas"]
+
+        self.categoria.configure(values=filtradas)
+        if filtradas:
+            self.categoria.set(filtradas[0])
+
     def _selecionar_tipo(self, tipo):
         self.tipo_selecionado = tipo
         if tipo == "RECEITA":
+            # Botões de tipo
             self.btn_sel_receita.configure(fg_color="#A6E3A1", text_color="#1E1E2E")
             self.btn_sel_despesa.configure(fg_color="#313244", text_color="#A6ADC8")
+
+            # Título e borda do card
+            self.lbl_titulo_form.configure(text="➕  NOVA RECEITA", text_color="#A6E3A1")
+            self.card_form.configure(border_color="#2E4839")
+
+            # Textos dos campos adaptados para Receita
+            self.descricao.configure(
+                placeholder_text="Ex: Salário, Rendimentos, Venda, Freelance, Pix recebido..."
+            )
+            self.lbl_categoria.configure(text="Categoria da Receita:")
+            self.lbl_terceiro.configure(text="Fonte Pagadora / Cliente (opcional):")
+            self.lbl_data.configure(text="Data do Recebimento:")
+            self.lbl_status.configure(text="Status do Recebimento:")
+
+            # Opções de Status adequadas para RECEITA
+            self.status.configure(values=["RECEBIDO", "A RECEBER"])
+            self.status.set("RECEBIDO")
+
+            # Botão salvar
             self.btn_salvar.configure(
                 text="Salvar Receita",
                 fg_color="#A6E3A1",
                 hover_color="#89D584",
+                text_color="#1E1E2E",
             )
         else:
+            # Botões de tipo
             self.btn_sel_despesa.configure(fg_color="#F38BA8", text_color="#1E1E2E")
             self.btn_sel_receita.configure(fg_color="#313244", text_color="#A6ADC8")
+
+            # Título e borda do card
+            self.lbl_titulo_form.configure(text="➕  NOVA DESPESA", text_color="#F38BA8")
+            self.card_form.configure(border_color="#4D2E3B")
+
+            # Textos dos campos adaptados para Despesa
+            self.descricao.configure(
+                placeholder_text="Ex: Aluguel, Supermercado, Luz, Combustível, Cartão..."
+            )
+            self.lbl_categoria.configure(text="Categoria da Despesa:")
+            self.lbl_terceiro.configure(text="Beneficiário / Fornecedor (opcional):")
+            self.lbl_data.configure(text="Data / Vencimento:")
+            self.lbl_status.configure(text="Status do Pagamento:")
+
+            # Opções de Status adequadas para DESPESA
+            self.status.configure(values=["PAGO", "PENDENTE"])
+            self.status.set("PAGO")
+
+            # Botão salvar
             self.btn_salvar.configure(
                 text="Salvar Despesa",
                 fg_color="#F38BA8",
                 hover_color="#E07A97",
+                text_color="#1E1E2E",
             )
+
+        # Atualiza categorias disponíveis de acordo com o tipo
+        self._atualizar_categorias_por_tipo(tipo)
 
     def _somar_ao_valor(self, quantia):
         val_atual_str = self.valor.get().strip().replace(",", ".").replace("R$", "")
@@ -517,6 +596,10 @@ class LancamentoView(ctk.CTkFrame):
         self.valor.delete(0, "end")
         self.data_vencimento.delete(0, "end")
         self.data_vencimento.insert(0, date.today().strftime("%d/%m/%Y"))
+        if self.tipo_selecionado == "RECEITA":
+            self.status.set("RECEBIDO")
+        else:
+            self.status.set("PAGO")
 
     # ==========================================================
     # ATUALIZAÇÃO GERAL E SINCRONIZAÇÃO
@@ -537,17 +620,8 @@ class LancamentoView(ctk.CTkFrame):
         sinal = "+" if saldo > 0 else ""
         self.lbl_saldo.configure(text=f"{sinal}R$ {saldo:.2f}", text_color=cor_saldo)
 
-        # Atualiza opções de Categorias do CategoriaDAO
-        try:
-            cats = self.cat_dao.listar_todas()
-            nomes_cat = [c["nome"] for c in cats] if cats else []
-            if not nomes_cat:
-                nomes_cat = ["Alimentação", "Moradia", "Transporte", "Salário", "Outros"]
-            self.categoria.configure(values=nomes_cat)
-            if self.categoria.get() not in nomes_cat:
-                self.categoria.set(nomes_cat[0])
-        except Exception:
-            pass
+        # Atualiza opções de Categorias filtradas pelo tipo ativo (Receita / Despesa)
+        self._atualizar_categorias_por_tipo(self.tipo_selecionado)
 
         # Atualiza opções de Terceiros do TerceiroDAO
         try:
