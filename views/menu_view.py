@@ -133,6 +133,19 @@ class MenuView(ctk.CTkFrame):
             ),
         ]
 
+        # Breve explicação de cada tela exibida no canto
+        self.explicacoes_telas = {
+            "saude": "💡 Visão geral da saúde financeira, saldos e score mensal",
+            "assistente_ia": "💡 Assistência inteligente e recomendações personalizadas",
+            "lancamento": "💡 Registro e acompanhamento de receitas, despesas e fluxo",
+            "meta": "💡 Planejamento de objetivos e progresso de economia para sonhos",
+            "simulador": "💡 Teste de corte de gastos e renda extra sem alterar dados reais",
+            "relatorio": "💡 Demonstrativos mensais consolidados, gráficos e balanços",
+            "terceiro": "💡 Cadastro e controle de contatos, clientes e fornecedores",
+            "categoria": "💡 Organização de despesas e limites de orçamento por categoria",
+            "usuario": "💡 Dados cadastrais, segurança da conta e preferências de perfil",
+        }
+
         # Layout principal
         self.grid_columnconfigure(
             1,
@@ -344,20 +357,56 @@ class MenuView(ctk.CTkFrame):
             weight=1
         )
 
-        # Título
-        self.titulo_tela = ctk.CTkLabel(
+        # Cabeçalho da tela (Título à esquerda + Breve explicação no canto direito)
+        self.header_tela = ctk.CTkFrame(
             self.area_conteudo,
-            text="",
-            font=fonte_titulo(),
-            anchor="w"
+            fg_color="transparent"
         )
-
-        self.titulo_tela.grid(
+        self.header_tela.grid(
             row=0,
             column=0,
             sticky="ew",
             pady=(0, 15)
         )
+        self.header_tela.grid_columnconfigure(0, weight=1)
+
+        self.titulo_tela = ctk.CTkLabel(
+            self.header_tela,
+            text="",
+            font=fonte_titulo(),
+            text_color=COR_TEXTO_PRINCIPAL,
+            anchor="w"
+        )
+        self.titulo_tela.grid(
+            row=0,
+            column=0,
+            sticky="w"
+        )
+
+        # Card informativo no canto direito
+        self.card_info_tela = ctk.CTkFrame(
+            self.header_tela,
+            fg_color=COR_CARD,
+            border_width=1,
+            border_color=COR_BORDA,
+            corner_radius=8,
+        )
+        self.card_info_tela.grid(
+            row=0,
+            column=1,
+            sticky="e",
+            padx=(10, 0)
+        )
+
+        self.lbl_info_tela = ctk.CTkLabel(
+            self.card_info_tela,
+            text="",
+            font=fonte(11),
+            text_color=COR_TEXTO_SECUNDARIO,
+            padx=12,
+            pady=5,
+        )
+        self.lbl_info_tela.pack()
 
         # Container das telas
         #
@@ -501,6 +550,12 @@ class MenuView(ctk.CTkFrame):
 
         self.titulo_tela.configure(
             text=titulo_limpo
+        )
+
+        # Atualizar explicação contextual no canto superior
+        explicacao = self.explicacoes_telas.get(chave, "")
+        self.lbl_info_tela.configure(
+            text=explicacao
         )
 
 
