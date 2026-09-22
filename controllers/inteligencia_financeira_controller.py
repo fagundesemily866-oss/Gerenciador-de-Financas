@@ -600,6 +600,576 @@ class InteligenciaFinanceiraController:
         }
 
     # ------------------------------------------------------------------
+    # 4.1. PROJEÇÃO TEMPORAL AVANÇADA (3, 6, 12, 24 MESES)
+    # ------------------------------------------------------------------
+    @classmethod
+    def projetar_futuro_financeiro(
+        cls,
+        lancamentos: List[Dict[str, Any]],
+        metas: Optional[List[Dict[str, Any]]] = None,
+        categorias: Optional[List[Dict[str, Any]]] = None,
+        meses_horizonte: int = 12,
+        reducao_despesas_pct: float = 0.0,
+        categoria_alvo: Optional[str] = None,
+        aumento_renda_valor: float = 0.0,
+        aporte_extra_metas: float = 0.0,
+        eventos: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Projeta o fluxo financeiro mês a mês para o horizonte especificado (3, 6, 12 ou 24 meses),
+        considerando cortes de gastos, novos rendimentos, metas e eventos inesperados.
+        """
+        meses_horizonte = max(3, min(36, int(meses_horizonte)))
+        hoje = date.today()
+
+        # Obter médias base mensais do histórico ou usar defaults realistas
+        meses_disp = cls.obter_meses_disponiveis(lancamentos)
+        if meses_disp:
+            ano_base = meses_disp[0]["ano"]
+            mes_base = meses_disp[0]["mes"]
+        else:
+            ano_base = hoje.year
+            mes_base = hoje.month
+
+        total_rec_base = 0.0
+        despesas_base_cat: Dict[str, float] = {}
+        for l in lancamentos:
+            d = _parse_data(l.get("date") or l.get("data"))
+            if d and d.year == ano_base and d.month == mes_base:
+                val = float(l.get("value") or l.get("valor", 0))
+                tipo = l.get("type") or l.get("tipo", "")
+                if tipo == "Receita":
+                    total_rec_base += val
+                elif tipo == "Despesa":
+                    c = (l.get("category") or l.get("categoria") or "Outros").strip()
+                    despesas_base_cat[c] = despesas_base_cat.get(c, 0.0) + val
+
+        if total_rec_base == 0.0 and sum(despesas_base_cat.values()) == 0.0:
+            total_rec_base = 3800.0
+            despesas_base_cat = {
+                "Moradia": 1300.0,
+                "Alimentação": 950.0,
+                "Transporte": 480.0,
+                "Lazer": 320.0,
+                "Saúde": 250.0,
+                "Outros": 200.0,
+            }
+
+        total_desp_base = sum(despesas_base_cat.values())
+        saldo_base_mensal = total_rec_base - total_desp_base
+
+        # Aplicar corte de gastos simulado
+        fator_reducao = max(0.0, min(0.9, reducao_despesas_pct / 100.0))
+        despesas_sim_ajustadas = {}
+        if categoria_alvo and categoria_alvo not in ("Todas as Despesas", "Todas"):
+            for cat, val in despesas_base_cat.items():
+                if cat.lower() == categoria_alvo.lower():
+                    despesas_sim_ajustadas[cat] = val * (1.0 - fator_reducao)
+                else:
+                    despesas_sim_ajustadas[cat] = val
+        else:
+            for cat, val in despesas_base_cat.items():
+                despesas_sim_ajustadas[cat] = val * (1.0 - fator_reducao)
+
+        total_desp_sim_padrao = sum(despesas_sim_ajustadas.values())
+        total_rec_sim_padrao = total_rec_base + max(0.0, float(aumento_renda_valor))
+
+        # Saldo inicial real acumulado (soma de todas as receitas - despesas históricas)
+        saldo_inicial_real = 0.0
+        for l in lancamentos:
+            val = float(l.get("value") or l.get("valor", 0))
+            if (l.get("type") or l.get("tipo")) == "Receita":
+                saldo_inicial_real += val
+            else:
+                saldo_inicial_real -= val
+
+        # Garantir piso razoável para o saldo inicial na simulação
+        saldo_inicial_acumulado = max(0.0, saldo_inicial_real)
+
+        # Tratar eventos inesperados
+        eventos_lista = eventos or []
+
+        # Gerar projeção mês a mês
+        meses_projecao = []
+        saldo_acumulado_base = saldo_inicial_acumulado
+        saldo_acumulado_sim = saldo_inicial_acumulado
+        economia_acumulada_total = 0.0
+
+        # Metas para acompanhar
+        metas_copia = []
+        if metas:
+            for m in metas:
+                metas_copia.append({
+                    "id": m.get("id"),
+                    "descricao": m.get("descricao", "Meta"),
+                    "valor_alvo": float(m.get("valor_alvo", 0) or 0),
+                    "valor_atual": float(m.get("valor_atual", 0) or 0),
+                    "valor_simulado": float(m.get("valor_atual", 0) or 0),
+                    "mes_conclusao": None,
+                })
+
+        for i in range(1, meses_horizonte + 1):
+            # Calcular mês e ano de calendário
+            mes_cal = (mes_base + i - 1) % 12 + 1
+            ano_cal = ano_base + (mes_base + i - 1) // 12
+            nome_mes_curto = cls.NOME_MESES[mes_cal][:3]
+            rotulo_mes = f"{nome_mes_curto}/{str(ano_cal)[2:]}"
+
+            # Eventos aplicáveis a este mês
+            eventos_do_mes = []
+            impacto_rec_eventos = 0.0
+            impacto_desp_eventos = 0.0
+
+            for ev in eventos_lista:
+                mes_inicio = int(ev.get("mes_inicio", 1))
+                tipo_ev = ev.get("tipo", "unico").lower()  # 'unico' ou 'recorrente'
+                natureza = ev.get("natureza", "despesa").lower()  # 'receita' ou 'despesa'
+                val_ev = float(ev.get("valor", 0.0))
+
+                se_aplica = False
+                if tipo_ev == "unico" and mes_inicio == i:
+                    se_aplica = True
+                elif tipo_ev == "recorrente" and i >= mes_inicio:
+                    se_aplica = True
+
+                if se_aplica:
+                    eventos_do_mes.append(ev)
+                    if natureza == "receita":
+                        impacto_rec_eventos += val_ev
+                    else:
+                        impacto_desp_eventos += val_ev
+
+            # Valores do mês
+            rec_base_m = total_rec_base
+            desp_base_m = total_desp_base
+            saldo_base_m = rec_base_m - desp_base_m
+            saldo_acumulado_base += saldo_base_m
+
+            rec_sim_m = total_rec_sim_padrao + impacto_rec_eventos
+            desp_sim_m = total_desp_sim_padrao + impacto_desp_eventos
+            saldo_sim_m = rec_sim_m - desp_sim_m
+            saldo_acumulado_sim += saldo_sim_m
+
+            economia_m = saldo_sim_m - saldo_base_m
+            economia_acumulada_total += economia_m
+
+            # Evolução das Metas neste mês
+            aporte_metas_mes = max(0.0, float(aporte_extra_metas))
+            if saldo_sim_m > 0 and not aporte_metas_mes:
+                # Se não especificou aporte fixo, usa 30% do saldo positivo para metas
+                aporte_metas_mes = saldo_sim_m * 0.3
+
+            for m in metas_copia:
+                if m["valor_simulado"] < m["valor_alvo"] and aporte_metas_mes > 0:
+                    aporte_aplicado = min(aporte_metas_mes, m["valor_alvo"] - m["valor_simulado"])
+                    m["valor_simulado"] += aporte_aplicado
+                    aporte_metas_mes -= aporte_aplicado
+                    if m["valor_simulado"] >= m["valor_alvo"] and m["mes_conclusao"] is None:
+                        m["mes_conclusao"] = rotulo_mes
+
+            meses_projecao.append({
+                "numero_mes": i,
+                "rotulo_mes": rotulo_mes,
+                "mes_calendario": mes_cal,
+                "ano_calendario": ano_cal,
+                "receitas_base": rec_base_m,
+                "despesas_base": desp_base_m,
+                "saldo_base": saldo_base_m,
+                "saldo_acumulado_base": saldo_acumulado_base,
+                "receitas_simulado": rec_sim_m,
+                "despesas_simulado": desp_sim_m,
+                "saldo_simulado": saldo_sim_m,
+                "saldo_acumulado_simulado": saldo_acumulado_sim,
+                "economia_mensal": economia_m,
+                "economia_acumulada": economia_acumulada_total,
+                "eventos_mes": eventos_do_mes,
+                "impacto_eventos_receitas": impacto_rec_eventos,
+                "impacto_eventos_despesas": impacto_desp_eventos,
+            })
+
+        # Cenários Otimista, Normal e Pessimista
+        cenarios = cls.calcular_cenarios_multiplos(
+            meses_projecao,
+            saldo_inicial=saldo_inicial_acumulado
+        )
+
+        # Previsão inteligente de metas
+        previsao_metas = cls.calcular_previsao_inteligente_metas(
+            metas=metas,
+            capacidade_poupanca_base=max(50.0, saldo_base_mensal),
+            capacidade_poupanca_simulada=max(50.0, (total_rec_sim_padrao - total_desp_sim_padrao) + float(aporte_extra_metas)),
+            ano_inicio=ano_base,
+            mes_inicio=mes_base,
+        )
+
+        # Totais consolidados do período
+        total_rec_periodo = sum(m["receitas_simulado"] for m in meses_projecao)
+        total_desp_periodo = sum(m["despesas_simulado"] for m in meses_projecao)
+        total_economizado_periodo = sum(m["economia_mensal"] for m in meses_projecao)
+
+        return {
+            "horizonte_meses": meses_horizonte,
+            "mes_inicial": f"{cls.NOME_MESES[mes_base]} / {ano_base}",
+            "saldo_inicial": saldo_inicial_acumulado,
+            "meses": meses_projecao,
+            "cenarios": cenarios,
+            "metas": previsao_metas,
+            "resumo": {
+                "saldo_final_projetado": saldo_acumulado_sim,
+                "saldo_final_base": saldo_acumulado_base,
+                "diferenca_saldo_final": saldo_acumulado_sim - saldo_acumulado_base,
+                "total_receitas_periodo": total_rec_periodo,
+                "total_despesas_periodo": total_desp_periodo,
+                "total_economizado_periodo": total_economizado_periodo,
+                "media_mensal_saldo": (total_rec_periodo - total_desp_periodo) / meses_horizonte,
+            }
+        }
+
+    # ------------------------------------------------------------------
+    # 4.2. CENÁRIOS OTIMISTA, NORMAL E PESSIMISTA
+    # ------------------------------------------------------------------
+    @classmethod
+    def calcular_cenarios_multiplos(
+        cls,
+        meses_projecao: List[Dict[str, Any]],
+        saldo_inicial: float = 0.0,
+    ) -> Dict[str, Any]:
+        """
+        Gera 3 cenários simultâneos (Normal, Otimista e Pessimista) a partir da projeção base:
+        - Otimista: +10% em receitas e -5% em despesas.
+        - Pessimista: -10% em receitas e +15% em despesas.
+        """
+        saldo_acum_normal = saldo_inicial
+        saldo_acum_otimista = saldo_inicial
+        saldo_acum_pessimista = saldo_inicial
+
+        pontos_normal = []
+        pontos_otimista = []
+        pontos_pessimista = []
+
+        for m in meses_projecao:
+            rec = m["receitas_simulado"]
+            desp = m["despesas_simulado"]
+
+            # Normal
+            saldo_norm = rec - desp
+            saldo_acum_normal += saldo_norm
+            pontos_normal.append(saldo_acum_normal)
+
+            # Otimista (+10% rec, -5% desp)
+            rec_otim = rec * 1.10
+            desp_otim = desp * 0.95
+            saldo_otim = rec_otim - desp_otim
+            saldo_acum_otimista += saldo_otim
+            pontos_otimista.append(saldo_acum_otimista)
+
+            # Pessimista (-10% rec, +15% desp)
+            rec_pess = rec * 0.90
+            desp_pess = desp * 1.15
+            saldo_pess = rec_pess - desp_pess
+            saldo_acum_pessimista += saldo_pess
+            pontos_pessimista.append(saldo_acum_pessimista)
+
+        return {
+            "normal": {
+                "saldo_final": saldo_acum_normal,
+                "evolucao": pontos_normal,
+                "descricao": "Cenário planejado com base nas taxas e cortes configurados.",
+            },
+            "otimista": {
+                "saldo_final": saldo_acum_otimista,
+                "evolucao": pontos_otimista,
+                "descricao": "Receitas +10% maiores e despesas -5% menores (renda extra, estabilidade).",
+            },
+            "pessimista": {
+                "saldo_final": saldo_acum_pessimista,
+                "evolucao": pontos_pessimista,
+                "descricao": "Receitas -10% menores e despesas +15% maiores (imprevistos, inflação).",
+            }
+        }
+
+    # ------------------------------------------------------------------
+    # 4.3. PREVISÃO INTELIGENTE DE METAS
+    # ------------------------------------------------------------------
+    @classmethod
+    def calcular_previsao_inteligente_metas(
+        cls,
+        metas: Optional[List[Dict[str, Any]]],
+        capacidade_poupanca_base: float,
+        capacidade_poupanca_simulada: float,
+        ano_inicio: int,
+        mes_inicio: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        Calcula com inteligência o mês e ano exato estimado para atingimento de cada meta.
+        """
+        if not metas:
+            return []
+
+        resultado = []
+        poup_base = max(30.0, capacidade_poupanca_base)
+        poup_sim = max(30.0, capacidade_poupanca_simulada)
+
+        for m in metas:
+            alvo = float(m.get("valor_alvo", 0) or 0)
+            atual = float(m.get("valor_atual", 0) or 0)
+            restante = max(0.0, alvo - atual)
+
+            if restante <= 0:
+                resultado.append({
+                    "id": m.get("id"),
+                    "descricao": m.get("descricao", "Meta"),
+                    "valor_alvo": alvo,
+                    "valor_atual": atual,
+                    "concluida": True,
+                    "meses_restantes_simulado": 0,
+                    "data_estimada": "Já alcançada!",
+                    "meses_economizados": 0,
+                })
+                continue
+
+            meses_base = math.ceil(restante / poup_base)
+            meses_sim = math.ceil(restante / poup_sim)
+            meses_economizados = max(0, meses_base - meses_sim)
+
+            # Data projetada (mês/ano)
+            mes_fim_sim = (mes_inicio + meses_sim - 1) % 12 + 1
+            ano_fim_sim = ano_inicio + (mes_inicio + meses_sim - 1) // 12
+            nome_mes_extenso = cls.NOME_MESES[mes_fim_sim]
+            data_estimada = f"{nome_mes_extenso} de {ano_fim_sim}"
+
+            mes_fim_base = (mes_inicio + meses_base - 1) % 12 + 1
+            ano_fim_base = ano_inicio + (mes_inicio + meses_base - 1) // 12
+            data_base = f"{cls.NOME_MESES[mes_fim_base]} de {ano_fim_base}"
+
+            resultado.append({
+                "id": m.get("id"),
+                "descricao": m.get("descricao", "Meta"),
+                "valor_alvo": alvo,
+                "valor_atual": atual,
+                "restante": restante,
+                "concluida": False,
+                "meses_restantes_base": meses_base,
+                "meses_restantes_simulado": meses_sim,
+                "meses_economizados": meses_economizados,
+                "data_estimada_simulada": data_estimada,
+                "data_estimada_base": data_base,
+            })
+
+        return resultado
+
+    # ------------------------------------------------------------------
+    # 4.4. COMPARADOR DE DECISÕES FINANCEIRAS (CENÁRIOS A, B, C)
+    # ------------------------------------------------------------------
+    @classmethod
+    def comparar_decisoes_financeiras(
+        cls,
+        lancamentos: List[Dict[str, Any]],
+        metas: Optional[List[Dict[str, Any]]],
+        decisao_a: Dict[str, Any],
+        decisao_b: Dict[str, Any],
+        decisao_c: Dict[str, Any],
+        meses_horizonte: int = 12,
+    ) -> Dict[str, Any]:
+        """
+        Compara lado a lado até 3 decisões financeiras distintas (ex: Comprar Parcelado vs Guardar vs Quitar Meta).
+        Cada decisão pode especificar:
+        - nome: str
+        - descricao: str
+        - gasto_inicial: float
+        - parcela_mensal: float (despesa extra nos meses seguintes)
+        - aumento_renda: float
+        - aporte_metas: float
+        - corte_despesas_pct: float
+        """
+        def _simular_uma_decisao(dec: Dict[str, Any]) -> Dict[str, Any]:
+            eventos_decisao = []
+            gasto_ini = float(dec.get("gasto_inicial", 0.0))
+            if gasto_ini > 0:
+                eventos_decisao.append({
+                    "descricao": f"Gasto Inicial ({dec.get('nome', 'Decisão')})",
+                    "valor": gasto_ini,
+                    "mes_inicio": 1,
+                    "tipo": "unico",
+                    "natureza": "despesa",
+                })
+
+            parcela = float(dec.get("parcela_mensal", 0.0))
+            if parcela > 0:
+                eventos_decisao.append({
+                    "descricao": f"Parcelas ({dec.get('nome', 'Decisão')})",
+                    "valor": parcela,
+                    "mes_inicio": 1,
+                    "tipo": "recorrente",
+                    "natureza": "despesa",
+                })
+
+            proj = cls.projetar_futuro_financeiro(
+                lancamentos=lancamentos,
+                metas=metas,
+                meses_horizonte=meses_horizonte,
+                reducao_despesas_pct=float(dec.get("corte_despesas_pct", 0.0)),
+                aumento_renda_valor=float(dec.get("aumento_renda", 0.0)),
+                aporte_extra_metas=float(dec.get("aporte_metas", 0.0)),
+                eventos=eventos_decisao,
+            )
+
+            resumo = proj["resumo"]
+            metas_proj = proj["metas"]
+            metas_concluidas = sum(1 for m in metas_proj if m.get("meses_restantes_simulado", 999) <= meses_horizonte)
+
+            return {
+                "nome": dec.get("nome", "Opção"),
+                "descricao": dec.get("descricao", ""),
+                "saldo_final": resumo["saldo_final_projetado"],
+                "total_gasto": resumo["total_despesas_periodo"],
+                "total_economizado": resumo["total_economizado_periodo"],
+                "metas_concluidas": metas_concluidas,
+                "projecao_resumo": proj,
+            }
+
+        res_a = _simular_uma_decisao(decisao_a)
+        res_b = _simular_uma_decisao(decisao_b)
+        res_c = _simular_uma_decisao(decisao_c)
+
+        # Identificar melhor decisão para saldo e melhor para metas
+        todas = [res_a, res_b, res_c]
+        melhor_saldo = max(todas, key=lambda x: x["saldo_final"])
+        melhor_metas = max(todas, key=lambda x: x["metas_concluidas"])
+
+        return {
+            "decisao_a": res_a,
+            "decisao_b": res_b,
+            "decisao_c": res_c,
+            "veredito": {
+                "campea_saldo": melhor_saldo["nome"],
+                "campea_metas": melhor_metas["nome"],
+            }
+        }
+
+    # ------------------------------------------------------------------
+    # 4.5. MAPA DE CONSEQUÊNCIAS FINANCEIRAS EM CASCATA
+    # ------------------------------------------------------------------
+    @classmethod
+    def gerar_mapa_consequencias(
+        cls,
+        lancamentos: List[Dict[str, Any]],
+        metas: Optional[List[Dict[str, Any]]],
+        valor_decisao: float,
+        num_parcelas: int = 1,
+        tipo_decisao: str = "compra",  # 'compra', 'investimento', 'corte'
+    ) -> List[Dict[str, Any]]:
+        """
+        Mapeia a árvore de causa e efeito de uma decisão financeira em cadeia:
+        Ação -> Impacto no fluxo mensal -> Margem de poupança -> Atraso/Adiantamento de metas -> Saldo final.
+        """
+        valor_decisao = max(0.0, float(valor_decisao))
+        num_parcelas = max(1, min(48, int(num_parcelas)))
+        valor_parcela = valor_decisao / num_parcelas
+
+        # Projeção normal sem a decisão
+        proj_base = cls.projetar_futuro_financeiro(
+            lancamentos=lancamentos,
+            metas=metas,
+            meses_horizonte=12,
+        )
+        saldo_final_base = proj_base["resumo"]["saldo_final_projetado"]
+
+        # Projeção com a decisão
+        evento = {
+            "descricao": "Decisão Analisada",
+            "valor": valor_parcela,
+            "mes_inicio": 1,
+            "tipo": "recorrente" if num_parcelas > 1 else "unico",
+            "natureza": "despesa" if tipo_decisao == "compra" else "receita",
+        }
+        proj_impacto = cls.projetar_futuro_financeiro(
+            lancamentos=lancamentos,
+            metas=metas,
+            meses_horizonte=12,
+            eventos=[evento],
+        )
+        saldo_final_impacto = proj_impacto["resumo"]["saldo_final_projetado"]
+        diff_saldo = saldo_final_impacto - saldo_final_base
+
+        passos = []
+
+        if tipo_decisao == "compra":
+            # 1. Ação
+            passos.append({
+                "icone": "🛒",
+                "etapa": "Ação Inicial",
+                "titulo": f"Compra de R$ {valor_decisao:,.2f}",
+                "detalhe": f"Dividida em {num_parcelas}x de R$ {valor_parcela:,.2f}/mês",
+                "tipo_status": "neutro",
+            })
+            # 2. Despesas
+            passos.append({
+                "icone": "📈",
+                "etapa": "Impacto Mensal",
+                "titulo": f"+ R$ {valor_parcela:,.2f} em Despesas Fixas",
+                "detalhe": f"Compromete seu orçamento pelos próximos {num_parcelas} meses",
+                "tipo_status": "alerta",
+            })
+            # 3. Poupança
+            passos.append({
+                "icone": "📉",
+                "etapa": "Capacidade de Economia",
+                "titulo": "Redução do Fluxo Livre de Caixa",
+                "detalhe": "Menos dinheiro disponível para imprevistos e investimentos",
+                "tipo_status": "alerta",
+            })
+            # 4. Metas
+            atraso_meta = math.ceil(valor_decisao / max(100.0, valor_parcela * 2))
+            passos.append({
+                "icone": "⏳",
+                "etapa": "Efeito nas Metas",
+                "titulo": f"Possível Atraso de ~{atraso_meta} Meses",
+                "detalhe": "Metas de médio e longo prazo demorarão mais para serem atingidas",
+                "tipo_status": "aviso",
+            })
+            # 5. Saldo
+            passos.append({
+                "icone": "💰",
+                "etapa": "Impacto em 12 Meses",
+                "titulo": f"Saldo Final {('R$ ' + f'{diff_saldo:,.2f}') if diff_saldo < 0 else ('+ R$ ' + f'{diff_saldo:,.2f}')}",
+                "detalhe": f"Saldo projetado passa de R$ {saldo_final_base:,.2f} para R$ {saldo_final_impacto:,.2f}",
+                "tipo_status": "alerta" if diff_saldo < 0 else "sucesso",
+            })
+        else:
+            # Caso de Investimento / Economia
+            passos.append({
+                "icone": "🌱",
+                "etapa": "Ação Inicial",
+                "titulo": f"Aporte / Economia de R$ {valor_decisao:,.2f}",
+                "detalhe": f"Economia mensal ou aporte contínuo de R$ {valor_parcela:,.2f}",
+                "tipo_status": "sucesso",
+            })
+            passos.append({
+                "icone": "🛡️",
+                "etapa": "Segurança Financeira",
+                "titulo": "+ Reserva de Emergência",
+                "detalhe": "Aumenta a tranquilidade contra imprevistos futuros",
+                "tipo_status": "sucesso",
+            })
+            passos.append({
+                "icone": "🚀",
+                "etapa": "Aceleração de Metas",
+                "titulo": "Conquista Antecipada de Sonhos",
+                "detalhe": "Suas metas ativas serão atingidas vários meses antes!",
+                "tipo_status": "sucesso",
+            })
+            passos.append({
+                "icone": "🏆",
+                "etapa": "Patrimônio em 12 Meses",
+                "titulo": f"+ R$ {abs(diff_saldo):,.2f} no Bolso",
+                "detalhe": f"Saldo final salta para R$ {saldo_final_impacto:,.2f}",
+                "tipo_status": "sucesso",
+            })
+
+        return passos
+
+    # ------------------------------------------------------------------
     # 5. RELATÓRIO MENSAL AUTOMÁTICO COMPLETO
     # ------------------------------------------------------------------
     @classmethod
