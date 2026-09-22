@@ -10,8 +10,9 @@ Como executar (a partir da pasta Gerenciador-de-Financas):
     python main.py
 
 Requisitos:
-    pip install customtkinter
+    pip install customtkinter pillow
 """
+import os
 import sys
 import customtkinter as ctk
 from dotenv import load_dotenv
@@ -28,7 +29,7 @@ from views.menu_view import MenuView
 # Configuração global de aparência (deve ocorrer UMA única vez, aqui)
 # ----------------------------------------------------------------------
 ctk.set_appearance_mode("Dark")
-ctk.set_default_color_theme("blue")
+ctk.set_default_color_theme("green")
 
 
 class AppManager:
@@ -80,6 +81,22 @@ def main() -> None:
     app.title("Gerenciador de Finanças Pessoais")
     app.geometry("1100x700")
     app.minsize(950, 650)
+
+    # ------------------------------------------------------------------
+    # 2.1. Define o ícone personalizado da janela
+    # ------------------------------------------------------------------
+    caminho_base = os.path.dirname(os.path.abspath(__file__))
+    caminho_icone = os.path.join(caminho_base, "assets", "icon.ico")
+    if os.path.exists(caminho_icone):
+        try:
+            app.iconbitmap(caminho_icone)
+        except Exception:
+            pass  # Fallback silencioso se o SO não suportar
+
+    # ------------------------------------------------------------------
+    # 2.2. Configura a cor de fundo da janela principal (verde escuro)
+    # ------------------------------------------------------------------
+    app.configure(fg_color="#0B1D1F")
 
     # ------------------------------------------------------------------
     # 3. Inicia o gerenciador de telas (Login → Menu)

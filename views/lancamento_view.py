@@ -5,6 +5,17 @@ from dao.lancamento_dao import LancamentoDAO
 from dao.categoria_dao import CategoriaDAO
 from views.notificacao_toast import GerenciadorNotificacoes
 from dao.terceiro_dao import TerceiroDAO
+from views.tema import (
+    COR_CARD, COR_CARD_INTERNO, COR_BORDA, COR_TEXTO_PRINCIPAL,
+    COR_TEXTO_SECUNDARIO, COR_TEXTO_TERCIARIO, COR_TEXTO_MUTED,
+    COR_ACENTO_PRIMARIO, COR_ACENTO_HOVER, COR_SUCESSO, COR_SUCESSO_HOVER,
+    COR_ALERTA, COR_ALERTA_HOVER, COR_INFO,
+    COR_RECEITA, COR_RECEITA_BG, COR_DESPESA, COR_DESPESA_BG,
+    COR_BOTAO_SECUNDARIO, COR_BOTAO_SECUNDARIO_HOVER,
+    COR_EXCLUIR_HOVER, COR_EXCLUIR_TEXTO,
+    fonte, fonte_subtitulo, fonte_corpo, fonte_pequena, fonte_hint,
+    fonte_grande_valor,
+)
 
 
 
@@ -49,22 +60,22 @@ class LancamentoView(ctk.CTkFrame):
         card_rec = ctk.CTkFrame(
             frame_resumo,
             corner_radius=12,
-            fg_color="#1E1E2E",
+            fg_color=COR_CARD,
             border_width=1,
-            border_color="#313244",
+            border_color=COR_BORDA,
         )
         card_rec.grid(row=0, column=0, sticky="ew", padx=(0, 8))
         ctk.CTkLabel(
             card_rec,
             text="📈 TOTAL RECEITAS",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#A6ADC8",
+            font=fonte(11, "bold"),
+            text_color=COR_TEXTO_SECUNDARIO,
         ).pack(anchor="w", padx=15, pady=(12, 2))
         self.lbl_total_receitas = ctk.CTkLabel(
             card_rec,
             text="R$ 0,00",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#A6E3A1",
+            font=fonte_grande_valor(),
+            text_color=COR_RECEITA,
         )
         self.lbl_total_receitas.pack(anchor="w", padx=15, pady=(0, 12))
 
@@ -72,22 +83,22 @@ class LancamentoView(ctk.CTkFrame):
         card_desp = ctk.CTkFrame(
             frame_resumo,
             corner_radius=12,
-            fg_color="#1E1E2E",
+            fg_color=COR_CARD,
             border_width=1,
-            border_color="#313244",
+            border_color=COR_BORDA,
         )
         card_desp.grid(row=0, column=1, sticky="ew", padx=4)
         ctk.CTkLabel(
             card_desp,
             text="📉 TOTAL DESPESAS",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#A6ADC8",
+            font=fonte(11, "bold"),
+            text_color=COR_TEXTO_SECUNDARIO,
         ).pack(anchor="w", padx=15, pady=(12, 2))
         self.lbl_total_despesas = ctk.CTkLabel(
             card_desp,
             text="R$ 0,00",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#F38BA8",
+            font=fonte_grande_valor(),
+            text_color=COR_DESPESA,
         )
         self.lbl_total_despesas.pack(anchor="w", padx=15, pady=(0, 12))
 
@@ -95,22 +106,22 @@ class LancamentoView(ctk.CTkFrame):
         card_saldo = ctk.CTkFrame(
             frame_resumo,
             corner_radius=12,
-            fg_color="#1E1E2E",
+            fg_color=COR_CARD,
             border_width=1,
-            border_color="#313244",
+            border_color=COR_BORDA,
         )
         card_saldo.grid(row=0, column=2, sticky="ew", padx=(8, 0))
         ctk.CTkLabel(
             card_saldo,
             text="💳 SALDO LÍQUIDO",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#A6ADC8",
+            font=fonte(11, "bold"),
+            text_color=COR_TEXTO_SECUNDARIO,
         ).pack(anchor="w", padx=15, pady=(12, 2))
         self.lbl_saldo = ctk.CTkLabel(
             card_saldo,
             text="R$ 0,00",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#89B4FA",
+            font=fonte_grande_valor(),
+            text_color=COR_ACENTO_PRIMARIO,
         )
         self.lbl_saldo.pack(anchor="w", padx=15, pady=(0, 12))
 
@@ -121,9 +132,9 @@ class LancamentoView(ctk.CTkFrame):
         self.card_form = ctk.CTkFrame(
             self,
             corner_radius=15,
-            fg_color="#1E1E2E",
+            fg_color=COR_CARD,
             border_width=1,
-            border_color="#4D2E3B",
+            border_color=COR_DESPESA_BG,
         )
         self.card_form.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
 
@@ -131,8 +142,8 @@ class LancamentoView(ctk.CTkFrame):
         self.lbl_titulo_form = ctk.CTkLabel(
             self.card_form,
             text="➕  NOVA DESPESA",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#F38BA8",
+            font=fonte_subtitulo(),
+            text_color=COR_DESPESA,
         )
         self.lbl_titulo_form.pack(anchor="w", padx=20, pady=(15, 10))
 
@@ -146,11 +157,11 @@ class LancamentoView(ctk.CTkFrame):
         self.btn_sel_despesa = ctk.CTkButton(
             frame_tipo,
             text="🔴  DESPESA",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=fonte(13, "bold"),
             height=38,
-            fg_color="#F38BA8",
-            text_color="#1E1E2E",
-            hover_color="#E07A97",
+            fg_color=COR_DESPESA,
+            text_color="#0B1D1F",
+            hover_color=COR_ALERTA_HOVER,
             command=lambda: self._selecionar_tipo("DESPESA"),
         )
         self.btn_sel_despesa.grid(row=0, column=0, sticky="ew", padx=(0, 5))
@@ -158,38 +169,39 @@ class LancamentoView(ctk.CTkFrame):
         self.btn_sel_receita = ctk.CTkButton(
             frame_tipo,
             text="🟢  RECEITA",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=fonte(13, "bold"),
             height=38,
-            fg_color="#313244",
-            text_color="#A6ADC8",
-            hover_color="#45475A",
+            fg_color=COR_BOTAO_SECUNDARIO,
+            text_color=COR_TEXTO_SECUNDARIO,
+            hover_color=COR_BOTAO_SECUNDARIO_HOVER,
             command=lambda: self._selecionar_tipo("RECEITA"),
         )
         self.btn_sel_receita.grid(row=0, column=1, sticky="ew", padx=(5, 0))
 
         # Descrição
         self.lbl_descricao = ctk.CTkLabel(
-            self.card_form, text="Descrição:", font=ctk.CTkFont(size=12)
+            self.card_form, text="Descrição:", font=fonte_corpo()
         )
         self.lbl_descricao.pack(anchor="w", padx=20, pady=(0, 2))
         self.descricao = ctk.CTkEntry(
             self.card_form,
             placeholder_text="Ex: Aluguel, Supermercado, Luz, Combustível...",
-            fg_color="#181825",
-            border_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            font=fonte_corpo(),
         )
         self.descricao.pack(fill="x", padx=20, pady=(0, 8))
 
         # Campo Valor
-        ctk.CTkLabel(self.card_form, text="Valor (R$):", font=ctk.CTkFont(size=12)).pack(
+        ctk.CTkLabel(self.card_form, text="Valor (R$):", font=fonte_corpo()).pack(
             anchor="w", padx=20, pady=(0, 2)
         )
         self.valor = ctk.CTkEntry(
             self.card_form,
             placeholder_text="0.00",
-            fg_color="#181825",
-            border_color="#313244",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            font=fonte(14, "bold"),
         )
         self.valor.pack(fill="x", padx=20, pady=(0, 4))
 
@@ -204,10 +216,10 @@ class LancamentoView(ctk.CTkFrame):
                 chips_frame,
                 text=f"+{val}",
                 height=24,
-                font=ctk.CTkFont(size=11),
-                fg_color="#313244",
-                hover_color="#45475A",
-                text_color="#CDD6F4",
+                font=fonte_pequena(),
+                fg_color=COR_BOTAO_SECUNDARIO,
+                hover_color=COR_BOTAO_SECUNDARIO_HOVER,
+                text_color=COR_TEXTO_PRINCIPAL,
                 command=lambda v=val: self._somar_ao_valor(v),
             )
             btn_chip.grid(row=0, column=idx, padx=2, sticky="ew")
@@ -217,10 +229,10 @@ class LancamentoView(ctk.CTkFrame):
             text="C",
             height=24,
             width=28,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#3E2633",
-            hover_color="#522F43",
-            text_color="#F38BA8",
+            font=fonte(11, "bold"),
+            fg_color=COR_DESPESA_BG,
+            hover_color=COR_EXCLUIR_HOVER,
+            text_color=COR_DESPESA,
             command=lambda: self.valor.delete(0, "end"),
         )
         btn_limpar_val.grid(row=0, column=4, padx=2, sticky="ew")
@@ -231,30 +243,32 @@ class LancamentoView(ctk.CTkFrame):
         duo2.grid_columnconfigure((0, 1), weight=1)
 
         self.lbl_categoria = ctk.CTkLabel(
-            duo2, text="Categoria da Despesa:", font=ctk.CTkFont(size=12)
+            duo2, text="Categoria da Despesa:", font=fonte_corpo()
         )
         self.lbl_categoria.grid(row=0, column=0, sticky="w", pady=(0, 2))
 
         self.lbl_terceiro = ctk.CTkLabel(
-            duo2, text="Beneficiário / Fornecedor (opcional):", font=ctk.CTkFont(size=12)
+            duo2, text="Beneficiário / Fornecedor (opcional):", font=fonte_corpo()
         )
         self.lbl_terceiro.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=(0, 2))
 
         self.categoria = ctk.CTkComboBox(
             duo2,
             values=["Alimentação", "Transporte", "Moradia", "Lazer", "Saúde", "Educação", "Outros"],
-            fg_color="#181825",
-            border_color="#313244",
-            button_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            button_color=COR_BOTAO_SECUNDARIO,
+            font=fonte_corpo(),
         )
         self.categoria.grid(row=1, column=0, sticky="ew")
 
         self.terceiro = ctk.CTkComboBox(
             duo2,
             values=["Nenhum"],
-            fg_color="#181825",
-            border_color="#313244",
-            button_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            button_color=COR_BOTAO_SECUNDARIO,
+            font=fonte_corpo(),
         )
         self.terceiro.grid(row=1, column=1, sticky="ew", padx=(10, 0))
 
@@ -264,20 +278,21 @@ class LancamentoView(ctk.CTkFrame):
         duo3.grid_columnconfigure((0, 1), weight=1)
 
         self.lbl_data = ctk.CTkLabel(
-            duo3, text="Data / Vencimento:", font=ctk.CTkFont(size=12)
+            duo3, text="Data / Vencimento:", font=fonte_corpo()
         )
         self.lbl_data.grid(row=0, column=0, sticky="w", pady=(0, 2))
 
         self.lbl_status = ctk.CTkLabel(
-            duo3, text="Status do Pagamento:", font=ctk.CTkFont(size=12)
+            duo3, text="Status do Pagamento:", font=fonte_corpo()
         )
         self.lbl_status.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=(0, 2))
 
         self.data_vencimento = ctk.CTkEntry(
             duo3,
             placeholder_text="DD/MM/AAAA",
-            fg_color="#181825",
-            border_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            font=fonte_corpo(),
         )
         hoje_formatado = date.today().strftime("%d/%m/%Y")
         self.data_vencimento.insert(0, hoje_formatado)
@@ -286,17 +301,18 @@ class LancamentoView(ctk.CTkFrame):
         ctk.CTkLabel(
             duo3,
             text="📅 Formato: DD/MM/AAAA",
-            font=ctk.CTkFont(size=10),
-            text_color="#585B70",
+            font=fonte_hint(),
+            text_color=COR_TEXTO_MUTED,
             anchor="w",
         ).grid(row=2, column=0, sticky="w", pady=(2, 0))
 
         self.status = ctk.CTkComboBox(
             duo3,
             values=["PAGO", "PENDENTE"],
-            fg_color="#181825",
-            border_color="#313244",
-            button_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            button_color=COR_BOTAO_SECUNDARIO,
+            font=fonte_corpo(),
         )
         self.status.set("PAGO")
         self.status.grid(row=1, column=1, sticky="ew", padx=(10, 0))
@@ -305,7 +321,7 @@ class LancamentoView(ctk.CTkFrame):
         self.mensagem = ctk.CTkLabel(
             self.card_form,
             text="",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=fonte(12, "bold"),
         )
         self.mensagem.pack(fill="x", padx=20, pady=(0, 6))
 
@@ -318,10 +334,10 @@ class LancamentoView(ctk.CTkFrame):
         self.btn_salvar = ctk.CTkButton(
             btn_box,
             text="Salvar Despesa",
-            fg_color="#F38BA8",
-            text_color="#1E1E2E",
-            hover_color="#E07A97",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=COR_DESPESA,
+            text_color="#0B1D1F",
+            hover_color=COR_ALERTA_HOVER,
+            font=fonte(13, "bold"),
             height=38,
             command=self.salvar_lancamento,
         )
@@ -330,10 +346,10 @@ class LancamentoView(ctk.CTkFrame):
         btn_limpar = ctk.CTkButton(
             btn_box,
             text="Limpar",
-            fg_color="#313244",
-            text_color="#CDD6F4",
-            hover_color="#45475A",
-            font=ctk.CTkFont(size=12),
+            fg_color=COR_BOTAO_SECUNDARIO,
+            text_color=COR_TEXTO_PRINCIPAL,
+            hover_color=COR_BOTAO_SECUNDARIO_HOVER,
+            font=fonte_corpo(),
             height=38,
             command=self._limpar_campos,
         )
@@ -369,12 +385,12 @@ class LancamentoView(ctk.CTkFrame):
         self.tipo_selecionado = tipo
         if tipo == "RECEITA":
             # Botões de tipo
-            self.btn_sel_receita.configure(fg_color="#A6E3A1", text_color="#1E1E2E")
-            self.btn_sel_despesa.configure(fg_color="#313244", text_color="#A6ADC8")
+            self.btn_sel_receita.configure(fg_color=COR_RECEITA, text_color="#0B1D1F")
+            self.btn_sel_despesa.configure(fg_color=COR_BOTAO_SECUNDARIO, text_color=COR_TEXTO_SECUNDARIO)
 
             # Título e borda do card
-            self.lbl_titulo_form.configure(text="➕  NOVA RECEITA", text_color="#A6E3A1")
-            self.card_form.configure(border_color="#2E4839")
+            self.lbl_titulo_form.configure(text="➕  NOVA RECEITA", text_color=COR_RECEITA)
+            self.card_form.configure(border_color=COR_RECEITA_BG)
 
             # Textos dos campos adaptados para Receita
             self.descricao.configure(
@@ -392,18 +408,18 @@ class LancamentoView(ctk.CTkFrame):
             # Botão salvar
             self.btn_salvar.configure(
                 text="Salvar Receita",
-                fg_color="#A6E3A1",
-                hover_color="#89D584",
-                text_color="#1E1E2E",
+                fg_color=COR_RECEITA,
+                hover_color=COR_SUCESSO_HOVER,
+                text_color="#0B1D1F",
             )
         else:
             # Botões de tipo
-            self.btn_sel_despesa.configure(fg_color="#F38BA8", text_color="#1E1E2E")
-            self.btn_sel_receita.configure(fg_color="#313244", text_color="#A6ADC8")
+            self.btn_sel_despesa.configure(fg_color=COR_DESPESA, text_color="#0B1D1F")
+            self.btn_sel_receita.configure(fg_color=COR_BOTAO_SECUNDARIO, text_color=COR_TEXTO_SECUNDARIO)
 
             # Título e borda do card
-            self.lbl_titulo_form.configure(text="➕  NOVA DESPESA", text_color="#F38BA8")
-            self.card_form.configure(border_color="#4D2E3B")
+            self.lbl_titulo_form.configure(text="➕  NOVA DESPESA", text_color=COR_DESPESA)
+            self.card_form.configure(border_color=COR_DESPESA_BG)
 
             # Textos dos campos adaptados para Despesa
             self.descricao.configure(
@@ -421,9 +437,9 @@ class LancamentoView(ctk.CTkFrame):
             # Botão salvar
             self.btn_salvar.configure(
                 text="Salvar Despesa",
-                fg_color="#F38BA8",
-                hover_color="#E07A97",
-                text_color="#1E1E2E",
+                fg_color=COR_DESPESA,
+                hover_color=COR_ALERTA_HOVER,
+                text_color="#0B1D1F",
             )
 
         # Atualiza categorias disponíveis de acordo com o tipo
@@ -446,9 +462,9 @@ class LancamentoView(ctk.CTkFrame):
         card_hist = ctk.CTkFrame(
             self,
             corner_radius=15,
-            fg_color="#1E1E2E",
+            fg_color=COR_CARD,
             border_width=1,
-            border_color="#313244",
+            border_color=COR_BORDA,
         )
         card_hist.grid(row=1, column=1, sticky="nsew", padx=(10, 0))
         card_hist.grid_columnconfigure(0, weight=1)
@@ -462,8 +478,8 @@ class LancamentoView(ctk.CTkFrame):
         self.lbl_qtd_lancamentos = ctk.CTkLabel(
             header,
             text="Lançamentos Recentes",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#CDD6F4",
+            font=fonte_subtitulo(),
+            text_color=COR_TEXTO_PRINCIPAL,
             anchor="w",
         )
         self.lbl_qtd_lancamentos.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
@@ -473,8 +489,8 @@ class LancamentoView(ctk.CTkFrame):
             header,
             values=["Todos", "Receitas", "Despesas"],
             command=self._alterar_filtro,
-            selected_color="#313244",
-            selected_hover_color="#45475A",
+            selected_color=COR_BOTAO_SECUNDARIO,
+            selected_hover_color=COR_BOTAO_SECUNDARIO_HOVER,
         )
         self.filtro_btn.set("Todos")
         self.filtro_btn.grid(row=1, column=0, columnspan=2, sticky="ew")
@@ -483,8 +499,9 @@ class LancamentoView(ctk.CTkFrame):
         self.entry_busca = ctk.CTkEntry(
             card_hist,
             placeholder_text="🔍 Buscar por descrição ou categoria...",
-            fg_color="#181825",
-            border_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            font=fonte_corpo(),
         )
         self.entry_busca.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 8))
         self.entry_busca.bind("<KeyRelease>", lambda e: self._filtrar_busca())
@@ -588,7 +605,7 @@ class LancamentoView(ctk.CTkFrame):
 
     def mostrar_mensagem(self, texto, tipo):
         self.mensagem.configure(text=texto)
-        cor = "#F38BA8" if tipo == "erro" else "#A6E3A1"
+        cor = COR_ALERTA if tipo == "erro" else COR_SUCESSO
         self.mensagem.configure(text_color=cor)
 
     def _limpar_campos(self):
@@ -616,7 +633,7 @@ class LancamentoView(ctk.CTkFrame):
         self.lbl_total_receitas.configure(text=f"R$ {total_rec:.2f}")
         self.lbl_total_despesas.configure(text=f"R$ {total_desp:.2f}")
 
-        cor_saldo = "#A6E3A1" if saldo >= 0 else "#F38BA8"
+        cor_saldo = COR_RECEITA if saldo >= 0 else COR_DESPESA
         sinal = "+" if saldo > 0 else ""
         self.lbl_saldo.configure(text=f"{sinal}R$ {saldo:.2f}", text_color=cor_saldo)
 
@@ -660,8 +677,8 @@ class LancamentoView(ctk.CTkFrame):
             ctk.CTkLabel(
                 self.scroll_lancamentos,
                 text="Nenhum lançamento encontrado.",
-                font=ctk.CTkFont(size=13),
-                text_color="#6C7086",
+                font=fonte_corpo(),
+                text_color=COR_TEXTO_TERCIARIO,
             ).pack(pady=40)
             return
 
@@ -672,19 +689,19 @@ class LancamentoView(ctk.CTkFrame):
     def _renderizar_card_lancamento(self, l: dict):
         card = ctk.CTkFrame(
             self.scroll_lancamentos,
-            fg_color="#181825",
+            fg_color=COR_CARD_INTERNO,
             corner_radius=10,
             border_width=1,
-            border_color="#313244",
+            border_color=COR_BORDA,
         )
         card.pack(fill="x", padx=4, pady=4)
         card.grid_columnconfigure(1, weight=1)
 
         eh_rec = l["type"] == "Receita"
-        cor_val = "#A6E3A1" if eh_rec else "#F38BA8"
+        cor_val = COR_RECEITA if eh_rec else COR_DESPESA
         sinal = "+" if eh_rec else "-"
         icone = "↑" if eh_rec else "↓"
-        bg_ico = "#2A3831" if eh_rec else "#3E2633"
+        bg_ico = COR_RECEITA_BG if eh_rec else COR_DESPESA_BG
 
         # Ícone de Tipo
         ico_frame = ctk.CTkFrame(card, fg_color=bg_ico, corner_radius=6, width=32, height=32)
@@ -693,7 +710,7 @@ class LancamentoView(ctk.CTkFrame):
         ctk.CTkLabel(
             ico_frame,
             text=icone,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=fonte(14, "bold"),
             text_color=cor_val,
         ).pack(expand=True)
 
@@ -701,8 +718,8 @@ class LancamentoView(ctk.CTkFrame):
         ctk.CTkLabel(
             card,
             text=l["description"],
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#CDD6F4",
+            font=fonte(13, "bold"),
+            text_color=COR_TEXTO_PRINCIPAL,
             anchor="w",
         ).grid(row=0, column=1, sticky="w", pady=(6, 0))
 
@@ -717,8 +734,8 @@ class LancamentoView(ctk.CTkFrame):
         ctk.CTkLabel(
             card,
             text=info_detalhe,
-            font=ctk.CTkFont(size=11),
-            text_color="#6C7086",
+            font=fonte_pequena(),
+            text_color=COR_TEXTO_TERCIARIO,
             anchor="w",
         ).grid(row=1, column=1, sticky="w", pady=(0, 6))
 
@@ -726,7 +743,7 @@ class LancamentoView(ctk.CTkFrame):
         ctk.CTkLabel(
             card,
             text=f"{sinal}R$ {l['value']:.2f}",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=fonte(13, "bold"),
             text_color=cor_val,
         ).grid(row=0, column=2, rowspan=2, padx=8)
 
@@ -737,9 +754,9 @@ class LancamentoView(ctk.CTkFrame):
             width=26,
             height=26,
             fg_color="transparent",
-            hover_color="#3E2633",
-            text_color="#F38BA8",
-            font=ctk.CTkFont(size=11, weight="bold"),
+            hover_color=COR_EXCLUIR_HOVER,
+            text_color=COR_EXCLUIR_TEXTO,
+            font=fonte(11, "bold"),
             command=lambda lid=l["id"]: self._excluir_lancamento(lid),
         )
         btn_del.grid(row=0, column=3, rowspan=2, padx=(0, 8))

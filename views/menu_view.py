@@ -10,6 +10,16 @@ from views.simulador_view import SimuladorView
 from views.relatorio_view import RelatorioView
 from views.assistente_ia_view import AssistenteIAView
 from views.notificacao_toast import GerenciadorNotificacoes
+from views.tema import (
+    COR_CARD, COR_CARD_INTERNO, COR_CARD_USER_BG, COR_CARD_USER_BORDA,
+    COR_BORDA, COR_SIDEBAR, COR_TEXTO_PRINCIPAL, COR_TEXTO_SECUNDARIO,
+    COR_TEXTO_TERCIARIO, COR_ACENTO_PRIMARIO, COR_AVATAR_BG, COR_AVATAR_TEXTO,
+    COR_BOTAO_NORMAL, COR_BOTAO_ATIVO, COR_BOTAO_HOVER,
+    COR_BOTAO_SECUNDARIO, COR_BOTAO_SECUNDARIO_HOVER,
+    COR_LOGOUT_BG, COR_LOGOUT_HOVER, COR_LOGOUT_TEXTO,
+    COR_FECHAR_BG, COR_FECHAR_HOVER, COR_FECHAR_TEXTO,
+    fonte, fonte_titulo, fonte_subtitulo, fonte_corpo, fonte_pequena,
+)
 
 
 
@@ -26,7 +36,7 @@ class EmConstrucaoView(ctk.CTkFrame):
         ctk.CTkLabel(
             self,
             text="🚧",
-            font=ctk.CTkFont(size=48)
+            font=fonte(48)
         ).pack(
             pady=(80, 10)
         )
@@ -34,17 +44,14 @@ class EmConstrucaoView(ctk.CTkFrame):
         ctk.CTkLabel(
             self,
             text=titulo,
-            font=ctk.CTkFont(
-                size=22,
-                weight="bold"
-            )
+            font=fonte(22, "bold"),
         ).pack()
 
         ctk.CTkLabel(
             self,
             text="Esta tela ainda está em desenvolvimento.",
-            font=ctk.CTkFont(size=14),
-            text_color="gray70"
+            font=fonte(14),
+            text_color=COR_TEXTO_TERCIARIO,
         ).pack(
             pady=5
         )
@@ -156,7 +163,8 @@ class MenuView(ctk.CTkFrame):
         self.sidebar = ctk.CTkFrame(
             self,
             width=240,
-            corner_radius=0
+            corner_radius=0,
+            fg_color=COR_SIDEBAR,
         )
 
         self.sidebar.grid(
@@ -176,10 +184,10 @@ class MenuView(ctk.CTkFrame):
         # Card do Usuário Logado no topo da Sidebar
         card_user = ctk.CTkFrame(
             self.sidebar,
-            fg_color="#181825",
+            fg_color=COR_CARD_USER_BG,
             corner_radius=10,
             border_width=1,
-            border_color="#313244",
+            border_color=COR_CARD_USER_BORDA,
         )
         card_user.grid(row=0, column=0, padx=12, pady=(15, 12), sticky="ew")
         card_user.grid_columnconfigure(1, weight=1)
@@ -189,21 +197,21 @@ class MenuView(ctk.CTkFrame):
         partes_nome = nome_completo.split()
         iniciais = (partes_nome[0][0] + (partes_nome[-1][0] if len(partes_nome) > 1 else "")).upper()
 
-        avatar = ctk.CTkFrame(card_user, width=38, height=38, corner_radius=19, fg_color="#313244")
+        avatar = ctk.CTkFrame(card_user, width=38, height=38, corner_radius=19, fg_color=COR_AVATAR_BG)
         avatar.grid(row=0, column=0, rowspan=2, padx=10, pady=10)
         avatar.grid_propagate(False)
         ctk.CTkLabel(
             avatar,
             text=iniciais,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#89B4FA",
+            font=fonte(13, "bold"),
+            text_color=COR_AVATAR_TEXTO,
         ).pack(expand=True)
 
         ctk.CTkLabel(
             card_user,
             text=nome_completo[:16],
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#CDD6F4",
+            font=fonte(12, "bold"),
+            text_color=COR_TEXTO_PRINCIPAL,
             anchor="w",
         ).grid(row=0, column=1, sticky="w", pady=(8, 0))
 
@@ -211,8 +219,8 @@ class MenuView(ctk.CTkFrame):
         ctk.CTkLabel(
             card_user,
             text=tipo_badge,
-            font=ctk.CTkFont(size=10),
-            text_color="#A6ADC8",
+            font=fonte(10),
+            text_color=COR_TEXTO_SECUNDARIO,
             anchor="w",
         ).grid(row=1, column=1, sticky="w", pady=(0, 8))
 
@@ -228,10 +236,10 @@ class MenuView(ctk.CTkFrame):
                 anchor="w",
                 height=40,
                 corner_radius=8,
-                fg_color="transparent",
-                text_color=("gray10", "gray90"),
-                hover_color=("gray75", "gray25"),
-                font=ctk.CTkFont(size=13),
+                fg_color=COR_BOTAO_NORMAL,
+                text_color=(COR_TEXTO_PRINCIPAL, COR_TEXTO_PRINCIPAL),
+                hover_color=(COR_BOTAO_HOVER, COR_BOTAO_HOVER),
+                font=fonte(13),
                 command=lambda c=chave: self.selecionar(c)
             )
 
@@ -254,7 +262,10 @@ class MenuView(ctk.CTkFrame):
                 "System"
             ],
             command=ctk.set_appearance_mode,
-            width=210
+            width=210,
+            fg_color=COR_BOTAO_SECUNDARIO,
+            button_color=COR_ACENTO_PRIMARIO,
+            font=fonte(12),
         )
 
         self.opcao_tema.set("Dark")
@@ -273,9 +284,10 @@ class MenuView(ctk.CTkFrame):
                 text="🚪 Desconectar",
                 width=210,
                 height=32,
-                fg_color="#313244",
-                hover_color="#45475A",
-                text_color="#CDD6F4",
+                fg_color=COR_LOGOUT_BG,
+                hover_color=COR_LOGOUT_HOVER,
+                text_color=COR_LOGOUT_TEXTO,
+                font=fonte(12),
                 command=self.on_logout,
             )
             btn_logout.grid(
@@ -291,9 +303,10 @@ class MenuView(ctk.CTkFrame):
             text="Fechar App",
             width=210,
             height=32,
-            fg_color="#4E2028",
-            hover_color="#6E2C38",
-            text_color="#F38BA8",
+            fg_color=COR_FECHAR_BG,
+            hover_color=COR_FECHAR_HOVER,
+            text_color=COR_FECHAR_TEXTO,
+            font=fonte(12),
             command=self.parent.destroy
         ).grid(
             row=len(self.itens_menu) + 5,
@@ -335,10 +348,7 @@ class MenuView(ctk.CTkFrame):
         self.titulo_tela = ctk.CTkLabel(
             self.area_conteudo,
             text="",
-            font=ctk.CTkFont(
-                size=24,
-                weight="bold"
-            ),
+            font=fonte_titulo(),
             anchor="w"
         )
 
@@ -408,8 +418,8 @@ class MenuView(ctk.CTkFrame):
 
                 botao.configure(
                     fg_color=(
-                        "gray70",
-                        "gray30"
+                        COR_BOTAO_ATIVO,
+                        COR_BOTAO_ATIVO,
                     )
                 )
 

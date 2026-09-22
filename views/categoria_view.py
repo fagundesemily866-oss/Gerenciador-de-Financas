@@ -2,6 +2,15 @@ import customtkinter as ctk
 from typing import Optional
 from dao.categoria_dao import CategoriaDAO
 from views.notificacao_toast import GerenciadorNotificacoes
+from views.tema import (
+    COR_CARD, COR_CARD_INTERNO, COR_BORDA, COR_TEXTO_PRINCIPAL,
+    COR_TEXTO_SECUNDARIO, COR_TEXTO_TERCIARIO, COR_TEXTO_MUTED,
+    COR_ACENTO_PRIMARIO, COR_ACENTO_HOVER, COR_SUCESSO, COR_ALERTA,
+    COR_RECEITA, COR_RECEITA_BG, COR_DESPESA, COR_DESPESA_BG,
+    COR_BOTAO_SECUNDARIO, COR_BOTAO_SECUNDARIO_HOVER,
+    COR_EXCLUIR_HOVER, COR_EXCLUIR_TEXTO,
+    fonte, fonte_subtitulo, fonte_corpo, fonte_pequena, fonte_hint,
+)
 
 
 class CategoriaView(ctk.CTkFrame):
@@ -29,56 +38,59 @@ class CategoriaView(ctk.CTkFrame):
         card_form = ctk.CTkFrame(
             self,
             corner_radius=15,
-            fg_color="#1E1E2E",
+            fg_color=COR_CARD,
             border_width=1,
-            border_color="#313244",
+            border_color=COR_BORDA,
         )
         card_form.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=5)
 
         titulo = ctk.CTkLabel(
             card_form,
             text="🏷️  NOVA CATEGORIA",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#A6ADC8",
+            font=fonte_subtitulo(),
+            text_color=COR_TEXTO_SECUNDARIO,
         )
         titulo.pack(anchor="w", padx=20, pady=(20, 15))
 
         # Campo Nome
         ctk.CTkLabel(
-            card_form, text="Nome da Categoria:", font=ctk.CTkFont(size=13)
+            card_form, text="Nome da Categoria:", font=fonte_corpo()
         ).pack(anchor="w", padx=20, pady=(5, 2))
         self.entry_nome = ctk.CTkEntry(
             card_form,
             placeholder_text="Ex: Alimentação, Lazer, Salário...",
-            fg_color="#181825",
-            border_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            font=fonte_corpo(),
         )
         self.entry_nome.pack(fill="x", padx=20, pady=(0, 10))
 
         # Tipo
-        ctk.CTkLabel(card_form, text="Tipo:", font=ctk.CTkFont(size=13)).pack(
+        ctk.CTkLabel(card_form, text="Tipo:", font=fonte_corpo()).pack(
             anchor="w", padx=20, pady=(5, 2)
         )
         self.combo_tipo = ctk.CTkComboBox(
             card_form,
             values=["Despesa", "Receita"],
-            fg_color="#181825",
-            border_color="#313244",
-            button_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            button_color=COR_BOTAO_SECUNDARIO,
+            font=fonte_corpo(),
         )
         self.combo_tipo.set("Despesa")
         self.combo_tipo.pack(fill="x", padx=20, pady=(0, 10))
 
         # Contexto de Uso (antes: Escopo)
-        ctk.CTkLabel(card_form, text="Contexto de Uso:", font=ctk.CTkFont(size=13)).pack(
+        ctk.CTkLabel(card_form, text="Contexto de Uso:", font=fonte_corpo()).pack(
             anchor="w", padx=20, pady=(5, 2)
         )
         self.combo_escopo = ctk.CTkComboBox(
             card_form,
             values=["Pessoal", "Empresarial", "Familiar", "Outros"],
-            fg_color="#181825",
-            border_color="#313244",
-            button_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            button_color=COR_BOTAO_SECUNDARIO,
+            font=fonte_corpo(),
         )
         self.combo_escopo.set("Pessoal")
         self.combo_escopo.pack(fill="x", padx=20, pady=(0, 10))
@@ -87,13 +99,14 @@ class CategoriaView(ctk.CTkFrame):
         ctk.CTkLabel(
             card_form,
             text="Limite de Orçamento (R$/mês):",
-            font=ctk.CTkFont(size=13),
+            font=fonte_corpo(),
         ).pack(anchor="w", padx=20, pady=(5, 2))
         self.entry_limite = ctk.CTkEntry(
             card_form,
             placeholder_text="0.00",
-            fg_color="#181825",
-            border_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            font=fonte_corpo(),
         )
         self.entry_limite.pack(fill="x", padx=20, pady=(0, 4))
 
@@ -101,8 +114,8 @@ class CategoriaView(ctk.CTkFrame):
         ctk.CTkLabel(
             card_form,
             text="💡 Deixe 0 para sem limite de orçamento",
-            font=ctk.CTkFont(size=10),
-            text_color="#585B70",
+            font=fonte_hint(),
+            text_color=COR_TEXTO_MUTED,
             anchor="w",
         ).pack(anchor="w", padx=20, pady=(0, 12))
 
@@ -110,7 +123,7 @@ class CategoriaView(ctk.CTkFrame):
         self.lbl_feedback = ctk.CTkLabel(
             card_form,
             text="",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=fonte(12, "bold"),
         )
         self.lbl_feedback.pack(fill="x", padx=20, pady=(0, 10))
 
@@ -118,10 +131,10 @@ class CategoriaView(ctk.CTkFrame):
         btn_salvar = ctk.CTkButton(
             card_form,
             text="Adicionar Categoria",
-            fg_color="#89B4FA",
-            text_color="#1E1E2E",
-            hover_color="#74A0E8",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=COR_ACENTO_PRIMARIO,
+            text_color="#0B1D1F",
+            hover_color=COR_ACENTO_HOVER,
+            font=fonte(13, "bold"),
             command=self._salvar_categoria,
         )
         btn_salvar.pack(fill="x", padx=20, pady=(0, 20))
@@ -133,9 +146,9 @@ class CategoriaView(ctk.CTkFrame):
         card_lista = ctk.CTkFrame(
             self,
             corner_radius=15,
-            fg_color="#1E1E2E",
+            fg_color=COR_CARD,
             border_width=1,
-            border_color="#313244",
+            border_color=COR_BORDA,
         )
         card_lista.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=5)
         card_lista.grid_columnconfigure(0, weight=1)
@@ -149,8 +162,8 @@ class CategoriaView(ctk.CTkFrame):
         self.lbl_total_categorias = ctk.CTkLabel(
             header,
             text="Categorias Cadastradas",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#CDD6F4",
+            font=fonte_subtitulo(),
+            text_color=COR_TEXTO_PRINCIPAL,
             anchor="w",
         )
         self.lbl_total_categorias.grid(row=0, column=0, sticky="w")
@@ -161,10 +174,10 @@ class CategoriaView(ctk.CTkFrame):
             text="⚡ Sugeridas",
             width=90,
             height=28,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#313244",
-            hover_color="#45475A",
-            text_color="#89B4FA",
+            font=fonte(11, "bold"),
+            fg_color=COR_BOTAO_SECUNDARIO,
+            hover_color=COR_BOTAO_SECUNDARIO_HOVER,
+            text_color=COR_ACENTO_PRIMARIO,
             command=self._inserir_categorias_padrao,
         )
         btn_padrao.grid(row=0, column=1, sticky="e", padx=(8, 0))
@@ -174,8 +187,8 @@ class CategoriaView(ctk.CTkFrame):
             header,
             values=["Todas", "Despesas", "Receitas"],
             command=self._alterar_filtro,
-            selected_color="#313244",
-            selected_hover_color="#45475A",
+            selected_color=COR_BOTAO_SECUNDARIO,
+            selected_hover_color=COR_BOTAO_SECUNDARIO_HOVER,
         )
         self.filtro_btn.set("Todas")
         self.filtro_btn.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
@@ -184,8 +197,9 @@ class CategoriaView(ctk.CTkFrame):
         self.entry_busca = ctk.CTkEntry(
             card_lista,
             placeholder_text="🔍 Buscar categoria pelo nome...",
-            fg_color="#181825",
-            border_color="#313244",
+            fg_color=COR_CARD_INTERNO,
+            border_color=COR_BORDA,
+            font=fonte_corpo(),
         )
         self.entry_busca.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 8))
         self.entry_busca.bind("<KeyRelease>", lambda e: self._filtrar_busca())
@@ -217,7 +231,7 @@ class CategoriaView(ctk.CTkFrame):
         limite_str = self.entry_limite.get().strip().replace(",", ".")
 
         if not nome:
-            self._mostrar_feedback("O nome da categoria é obrigatório!", "#F38BA8")
+            self._mostrar_feedback("O nome da categoria é obrigatório!", COR_ALERTA)
             return
 
         limite = 0.0
@@ -225,10 +239,10 @@ class CategoriaView(ctk.CTkFrame):
             try:
                 limite = float(limite_str)
                 if limite < 0:
-                    self._mostrar_feedback("O limite não pode ser negativo!", "#F38BA8")
+                    self._mostrar_feedback("O limite não pode ser negativo!", COR_ALERTA)
                     return
             except ValueError:
-                self._mostrar_feedback("Digite um valor de limite válido!", "#F38BA8")
+                self._mostrar_feedback("Digite um valor de limite válido!", COR_ALERTA)
                 return
 
         try:
@@ -238,7 +252,7 @@ class CategoriaView(ctk.CTkFrame):
                 escopo=escopo,
                 limite_orcamento=limite,
             )
-            self._mostrar_feedback(f"✓ Categoria '{nome}' criada!", "#A6E3A1")
+            self._mostrar_feedback(f"✓ Categoria '{nome}' criada!", COR_SUCESSO)
             self.entry_nome.delete(0, "end")
             self.entry_limite.delete(0, "end")
             try:
@@ -248,7 +262,7 @@ class CategoriaView(ctk.CTkFrame):
             except Exception:
                 pass
         except Exception as e:
-            self._mostrar_feedback(f"Erro ao salvar: {e}", "#F38BA8")
+            self._mostrar_feedback(f"Erro ao salvar: {e}", COR_ALERTA)
             try:
                 notif = GerenciadorNotificacoes.obter_instancia()
                 if notif:
@@ -275,9 +289,9 @@ class CategoriaView(ctk.CTkFrame):
                 inseridas += 1
 
         if inseridas > 0:
-            self._mostrar_feedback(f"✓ {inseridas} categorias sugeridas adicionadas!", "#A6E3A1")
+            self._mostrar_feedback(f"✓ {inseridas} categorias sugeridas adicionadas!", COR_SUCESSO)
         else:
-            self._mostrar_feedback("As categorias sugeridas já existem!", "#89B4FA")
+            self._mostrar_feedback("As categorias sugeridas já existem!", COR_ACENTO_PRIMARIO)
         self.atualizar_dados()
 
     def _mostrar_feedback(self, texto: str, cor: str):
@@ -319,8 +333,8 @@ class CategoriaView(ctk.CTkFrame):
             ctk.CTkLabel(
                 self.scroll_cards,
                 text=msg,
-                font=ctk.CTkFont(size=13),
-                text_color="#6C7086",
+                font=fonte_corpo(),
+                text_color=COR_TEXTO_TERCIARIO,
                 justify="center",
             ).pack(pady=40)
             return
@@ -331,17 +345,17 @@ class CategoriaView(ctk.CTkFrame):
     def _renderizar_card_categoria(self, cat: dict):
         card = ctk.CTkFrame(
             self.scroll_cards,
-            fg_color="#181825",
+            fg_color=COR_CARD_INTERNO,
             corner_radius=10,
             border_width=1,
-            border_color="#313244",
+            border_color=COR_BORDA,
         )
         card.pack(fill="x", padx=5, pady=5)
         card.grid_columnconfigure(1, weight=1)
 
         # Cor do badge por tipo
-        cor_tipo = "#A6E3A1" if cat["tipo"] == "Receita" else "#F38BA8"
-        bg_badge = "#2A3831" if cat["tipo"] == "Receita" else "#3E2633"
+        cor_tipo = COR_RECEITA if cat["tipo"] == "Receita" else COR_DESPESA
+        bg_badge = COR_RECEITA_BG if cat["tipo"] == "Receita" else COR_DESPESA_BG
 
         # Badge do tipo
         badge_frame = ctk.CTkFrame(card, fg_color=bg_badge, corner_radius=6)
@@ -349,7 +363,7 @@ class CategoriaView(ctk.CTkFrame):
         ctk.CTkLabel(
             badge_frame,
             text=cat["tipo"].upper(),
-            font=ctk.CTkFont(size=10, weight="bold"),
+            font=fonte(10, "bold"),
             text_color=cor_tipo,
         ).pack(padx=8, pady=4)
 
@@ -357,8 +371,8 @@ class CategoriaView(ctk.CTkFrame):
         ctk.CTkLabel(
             card,
             text=cat["nome"],
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#CDD6F4",
+            font=fonte(14, "bold"),
+            text_color=COR_TEXTO_PRINCIPAL,
             anchor="w",
         ).grid(row=0, column=1, sticky="w", pady=(8, 0))
 
@@ -370,8 +384,8 @@ class CategoriaView(ctk.CTkFrame):
         ctk.CTkLabel(
             card,
             text=info_detalhes,
-            font=ctk.CTkFont(size=11),
-            text_color="#A6ADC8",
+            font=fonte_pequena(),
+            text_color=COR_TEXTO_SECUNDARIO,
             anchor="w",
         ).grid(row=1, column=1, sticky="w", pady=(0, 8))
 
@@ -382,8 +396,8 @@ class CategoriaView(ctk.CTkFrame):
             width=32,
             height=32,
             fg_color="transparent",
-            hover_color="#3E2633",
-            text_color="#F38BA8",
+            hover_color=COR_EXCLUIR_HOVER,
+            text_color=COR_EXCLUIR_TEXTO,
             command=lambda cid=cat["id"]: self._excluir_categoria(cid),
         )
         btn_del.grid(row=0, column=2, rowspan=2, padx=12, pady=8)
