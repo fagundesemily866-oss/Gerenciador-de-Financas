@@ -97,6 +97,17 @@ class Database:
                 data_atualizacao TEXT    NOT NULL,
                 FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS simulacoes (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id       INTEGER,
+                nome             TEXT    NOT NULL,
+                descricao        TEXT,
+                parametros_json  TEXT    NOT NULL,
+                resultados_json  TEXT,
+                data_criacao     TEXT    NOT NULL,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
+            );
             """
         )
         connection.commit()
