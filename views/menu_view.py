@@ -108,7 +108,7 @@ class MenuView(ctk.CTkFrame):
             ),
             (
                 "simulador",
-                "🔮  Simulador 'E se...?'",
+                "🔮  Simulador de Cenários",
                 SimuladorView
             ),
             (

@@ -1,6 +1,6 @@
 """
-View do Simulador Financeiro "E se...?".
-==========================================
+View do Simulador de Cenários Financeiros.
+=========================================
 
 Permite simular cenários hipotéticos (corte de gastos, aumento de renda,
 aportes extras em metas) sem alterar dados reais do banco de dados.
@@ -15,7 +15,7 @@ from controllers.inteligencia_financeira_controller import InteligenciaFinanceir
 
 
 class SimuladorView(ctk.CTkFrame):
-    """Tela interativa do Simulador Financeiro 'E se...?'."""
+    """Tela interativa do Simulador de Cenários Financeiros."""
 
     def __init__(
         self,
