@@ -199,3 +199,74 @@ class AIService:
                 system_instruction=self.SYSTEM_INSTRUCTION,
             )
             self._chat = model.start_chat(history=[])
+
+    def analisar_simulacao_financeira(self, dados_simulacao: dict) -> str:
+        """
+        Analisa os resultados de uma simulação e gera um parecer consultivo amigável,
+        explicando consequências e impacto em metas e patrimônio.
+        Possui fallback heurístico local quando a IA estiver offline.
+        """
+        resumo = dados_simulacao.get("resumo", {})
+        horizonte = dados_simulacao.get("horizonte_meses", 12)
+        metas = dados_simulacao.get("metas", [])
+        saldo_final = resumo.get("saldo_final_projetado", 0.0)
+        economia = resumo.get("total_economizado_periodo", 0.0)
+        dif_saldo = resumo.get("diferenca_saldo_final", 0.0)
+
+        # Prompt estruturado para a IA
+        prompt = (
+            f"Analise como consultor financeiro o seguinte cenário simulado de {horizonte} meses:\n"
+            f"- Saldo Projetado Final: R$ {saldo_final:,.2f}\n"
+            f"- Economia Adicional Gerada: R$ {economia:,.2f}\n"
+            f"- Diferença comparada ao ritmo atual: R$ {dif_saldo:,.2f}\n"
+        )
+        if metas:
+            prompt += "- Impacto nas Metas:\n"
+            for m in metas[:3]:
+                desc = m.get("descricao", "Meta")
+                econ = m.get("meses_economizados", 0)
+                data_est = m.get("data_estimada_simulada", "N/D")
+                prompt += f"  • {desc}: Previsão para {data_est} ({econ} meses adiantados)\n"
+
+        prompt += (
+            "\nForneça uma análise amigável, com tom encorajador e profissional em português do Brasil, "
+            "explicando as consequências dessa decisão no curto e longo prazo. Máximo 180 palavras."
+        )
+
+        if self.disponivel:
+            try:
+                resposta = self.enviar_pergunta(prompt)
+                if resposta and not resposta.startswith("⚠️") and not resposta.startswith("❌"):
+                    return resposta
+            except Exception:
+                pass
+
+        # Fallback heurístico inteligente local
+        linhas = []
+        if dif_saldo >= 0:
+            linhas.append(
+                f"🌟 **Excelente projeção!** Com as configurações deste cenário, você acumulará uma reserva estimada de **R$ {saldo_final:,.2f}** ao final de {horizonte} meses — um ganho real de **R$ {dif_saldo:,.2f}** frente ao seu ritmo habitual."
+            )
+        else:
+            linhas.append(
+                f"⚠️ **Atenção ao impacto no caixa:** Neste cenário, seu saldo ao final de {horizonte} meses ficará **R$ {abs(dif_saldo):,.2f}** menor. Avalie se esse custo cabe com folga no seu orçamento sem comprometer sua reserva."
+            )
+
+        if metas:
+            metas_aceleradas = [m for m in metas if m.get("meses_economizados", 0) > 0]
+            if metas_aceleradas:
+                m1 = metas_aceleradas[0]
+                linhas.append(
+                    f"🎯 A meta **{m1['descricao']}** é uma das mais beneficiadas, com previsão de conquista para **{m1.get('data_estimada_simulada', '')}** (ganho de {m1['meses_economizados']} meses de antecedência!)."
+                )
+            else:
+                linhas.append(
+                    "🎯 Suas metas continuam no ritmo regular. Para acelerá-las, experimente direcionar uma porcentagem maior da economia diretamente a elas."
+                )
+
+        linhas.append(
+            "💡 **Dica do Especialista:** Pequenos cortes em despesas flexíveis têm efeito multiplicador no longo prazo graças ao acúmulo mensal sem comprometer sua qualidade de vida."
+        )
+
+        return "\n\n".join(linhas)
+
