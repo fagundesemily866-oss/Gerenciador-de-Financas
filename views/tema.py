@@ -81,7 +81,7 @@ COR_TAB_TEXTO = "#0B1D1F"
 # No macOS, "SF Pro Display" ou "Helvetica Neue".
 # Fallback para "Arial" em qualquer SO.
 
-FONTE_FAMILIA = "Segoe UI"
+FONTE_FAMILIA = "Montserrat"
 
 import customtkinter as ctk
 

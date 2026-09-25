@@ -3,6 +3,8 @@ from datetime import date
 from typing import Optional
 from dao.usuario_dao import UsuarioDAO
 from views.notificacao_toast import GerenciadorNotificacoes
+from PIL import Image, ImageTk
+from tkinter import filedialog
 
 
 class UsuarioView(ctk.CTkFrame):
@@ -64,24 +66,22 @@ class UsuarioView(ctk.CTkFrame):
         )
         title.pack(anchor="w", padx=20, pady=(15, 10))
 
-        # Avatar com iniciais do nome
-        avatar_frame = ctk.CTkFrame(
-            frame_perfil,
-            width=56,
-            height=56,
-            corner_radius=28,
-            fg_color="#313244",
-        )
-        avatar_frame.pack(anchor="w", padx=20, pady=(0, 8))
-        avatar_frame.pack_propagate(False)
+        # Foto de perfil
 
-        self.lbl_avatar = ctk.CTkLabel(
-            avatar_frame,
-            text="",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#89B4FA",
+        self.foto_perfil = None
+
+        self.btn_avatar = ctk.CTkButton(
+            frame_perfil,
+            text="👤",
+            width=80,
+            height=80,
+            corner_radius=40,
+            fg_color="#313244",
+            hover_color="#45475A",
+            command=self._escolher_foto
         )
-        self.lbl_avatar.pack(expand=True)
+
+        self.btn_avatar.pack(anchor="w", padx=20, pady=(0, 8))
 
         self.lbl_nome = ctk.CTkLabel(
             frame_perfil,
@@ -278,6 +278,34 @@ class UsuarioView(ctk.CTkFrame):
     # ==========================================================
     # AÇÕES E ATUALIZAÇÃO
     # ==========================================================
+
+    def _escolher_foto(self):
+        caminho = filedialog.askopenfilename(
+            title="Escolher foto de perfil",
+            filetypes=[
+                ("Imagens", "*.png *.jpg *.jpeg"),
+                ("Todos os arquivos", "*.*")
+            ]
+        )
+
+        if not caminho:
+            return
+
+        imagem = Image.open(caminho)
+        imagem = imagem.convert("RGB")
+        imagem.thumbnail((80, 80))
+
+        self.foto_perfil = ctk.CTkImage(
+            light_image=imagem,
+            dark_image=imagem,
+            size=(80, 80)
+        )
+
+        self.btn_avatar.configure(
+            image=self.foto_perfil,
+            text=""
+        )
+
     def _salvar_dados_perfil(self):
         nome = self.campo_nome.get().strip()
         email = self.campo_email.get().strip()
@@ -330,51 +358,51 @@ class UsuarioView(ctk.CTkFrame):
         nova = self.campo_senha_nova.get()
         confirma = self.campo_senha_confirma.get()
 
-        # Validações
         senha_gravada = self.usuario_atual.get("senha_hash", "")
+
         if atual != senha_gravada:
             self.lbl_feedback_senha.configure(
-                text="Senha atual incorreta!", text_color="#F38BA8"
+                text="Senha atual incorreta!",
+                text_color="#F38BA8"
             )
             return
 
         if len(nova) < 4:
             self.lbl_feedback_senha.configure(
-                text="A nova senha deve ter no mínimo 4 caracteres!", text_color="#F38BA8"
+                text="A nova senha deve ter no mínimo 4 caracteres!",
+                text_color="#F38BA8"
             )
             return
 
         if nova != confirma:
             self.lbl_feedback_senha.configure(
-                text="As senhas não coincidem!", text_color="#F38BA8"
+                text="As senhas não coincidem!",
+                text_color="#F38BA8"
             )
             return
 
         try:
-            self.dao.alterar_senha(self.usuario_atual["id"], nova)
-            self.lbl_feedback_senha.configure(
-                text="✓ Senha alterada com sucesso!", text_color="#A6E3A1"
+            self.dao.alterar_senha(
+                self.usuario_atual["id"],
+                nova
             )
+
+            self.lbl_feedback_senha.configure(
+                text="✓ Senha alterada com sucesso!",
+                text_color="#A6E3A1"
+            )
+
             self.campo_senha_atual.delete(0, "end")
             self.campo_senha_nova.delete(0, "end")
             self.campo_senha_confirma.delete(0, "end")
+
             self.atualizar_dados()
-            try:
-                notif = GerenciadorNotificacoes.obter_instancia()
-                if notif:
-                    notif.sucesso("Senha alterada com sucesso!")
-            except Exception:
-                pass
+
         except Exception as e:
             self.lbl_feedback_senha.configure(
-                text=f"Erro ao alterar senha: {e}", text_color="#F38BA8"
+                text=f"Erro ao alterar senha: {e}",
+                text_color="#F38BA8"
             )
-            try:
-                notif = GerenciadorNotificacoes.obter_instancia()
-                if notif:
-                    notif.erro(f"Erro ao alterar senha: {e}")
-            except Exception:
-                pass
 
     def atualizar_dados(self):
         """Recarrega os dados do usuário a partir do SQLite."""
@@ -391,11 +419,6 @@ class UsuarioView(ctk.CTkFrame):
 
         self.lbl_nome.configure(text=nome)
         self.lbl_email.configure(text=email)
-
-        # Avatar com iniciais
-        partes = nome.split()
-        iniciais = (partes[0][0] + (partes[-1][0] if len(partes) > 1 else "")).upper()
-        self.lbl_avatar.configure(text=iniciais)
 
         # Badge descritivo
         tipo_desc = "Pessoa Física" if tipo == "PF" else "Pessoa Jurídica"
