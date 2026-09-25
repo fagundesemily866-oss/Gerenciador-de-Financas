@@ -1,4 +1,5 @@
 import customtkinter as ctk
+from PIL import Image
 
 from views.usuario_view import UsuarioView
 from views.lancamento_view import LancamentoView
@@ -83,6 +84,9 @@ class MenuView(ctk.CTkFrame):
 
         # Botões do menu
         self.botoes = {}
+
+        # Imagem do avatar da sidebar (mantém referência para não ser coletada pelo GC)
+        self.avatar_image = None
 
         # Itens do menu
         self.itens_menu = [
@@ -213,12 +217,16 @@ class MenuView(ctk.CTkFrame):
         avatar = ctk.CTkFrame(card_user, width=38, height=38, corner_radius=19, fg_color=COR_AVATAR_BG)
         avatar.grid(row=0, column=0, rowspan=2, padx=10, pady=10)
         avatar.grid_propagate(False)
-        ctk.CTkLabel(
+
+        # Label do avatar: mostra as iniciais por padrão, e passa a mostrar a
+        # foto do usuário assim que ela for atualizada (ver atualizar_avatar_sidebar).
+        self.lbl_avatar = ctk.CTkLabel(
             avatar,
             text=iniciais,
             font=fonte(13, "bold"),
             text_color=COR_AVATAR_TEXTO,
-        ).pack(expand=True)
+        )
+        self.lbl_avatar.pack(expand=True)
 
         ctk.CTkLabel(
             card_user,
@@ -327,6 +335,24 @@ class MenuView(ctk.CTkFrame):
             padx=15,
             pady=(0, 15)
         )
+
+    # ==============================================================
+    # AVATAR DA SIDEBAR
+    # ==============================================================
+
+    def atualizar_avatar_sidebar(self, imagem_pil: Image.Image):
+        """Recebe uma imagem PIL (já aberta) vinda do UsuarioView e atualiza
+        o avatar circular exibido no topo da sidebar."""
+        imagem_mini = imagem_pil.copy()
+        imagem_mini.thumbnail((38, 38))
+
+        self.avatar_image = ctk.CTkImage(
+            light_image=imagem_mini,
+            dark_image=imagem_mini,
+            size=(38, 38),
+        )
+
+        self.lbl_avatar.configure(image=self.avatar_image, text="")
 
     # ==============================================================
     # ÁREA DE CONTEÚDO
@@ -506,7 +532,11 @@ class MenuView(ctk.CTkFrame):
 
             else:
                 if classe_view == UsuarioView:
-                    nova_view = classe_view(self.container, usuario_atual=self.usuario_logado)
+                    nova_view = classe_view(
+                        self.container,
+                        usuario_atual=self.usuario_logado,
+                        on_foto_atualizada=self.atualizar_avatar_sidebar,
+                    )
                 else:
                     nova_view = classe_view(self.container)
 

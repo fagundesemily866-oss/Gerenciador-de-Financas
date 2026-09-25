@@ -10,9 +10,13 @@ from tkinter import filedialog
 class UsuarioView(ctk.CTkFrame):
     """Tela de Meu Perfil com dados persistidos no banco de dados SQLite."""
 
-    def __init__(self, parent, dao: Optional[UsuarioDAO] = None, usuario_atual: Optional[dict] = None):
+    def __init__(self, parent, dao: Optional[UsuarioDAO] = None, usuario_atual: Optional[dict] = None,
+                 on_foto_atualizada: Optional[callable] = None):
         super().__init__(parent, fg_color="transparent")
         self.dao = dao or UsuarioDAO()
+        # Callback chamado com a imagem PIL sempre que o usuário troca a foto,
+        # usado pelo MenuView para atualizar o avatar da sidebar em tempo real.
+        self.on_foto_atualizada = on_foto_atualizada
 
         if usuario_atual:
             self.usuario_atual = usuario_atual
@@ -291,13 +295,16 @@ class UsuarioView(ctk.CTkFrame):
         if not caminho:
             return
 
-        imagem = Image.open(caminho)
-        imagem = imagem.convert("RGB")
-        imagem.thumbnail((80, 80))
+        imagem_original = Image.open(caminho)
+        imagem_original = imagem_original.convert("RGB")
+
+        # Miniatura para o avatar grande desta própria tela (Meu Perfil)
+        imagem_perfil = imagem_original.copy()
+        imagem_perfil.thumbnail((80, 80))
 
         self.foto_perfil = ctk.CTkImage(
-            light_image=imagem,
-            dark_image=imagem,
+            light_image=imagem_perfil,
+            dark_image=imagem_perfil,
             size=(80, 80)
         )
 
@@ -305,6 +312,10 @@ class UsuarioView(ctk.CTkFrame):
             image=self.foto_perfil,
             text=""
         )
+
+        # Avisa o MenuView (sidebar) para atualizar o avatar lá em cima também
+        if self.on_foto_atualizada:
+            self.on_foto_atualizada(imagem_original)
 
     def _salvar_dados_perfil(self):
         nome = self.campo_nome.get().strip()
