@@ -108,8 +108,44 @@ class Database:
                 data_criacao     TEXT    NOT NULL,
                 FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS meta_aportes (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                meta_id     INTEGER NOT NULL,
+                valor       REAL    NOT NULL,
+                data        TEXT    NOT NULL,
+                FOREIGN KEY (meta_id) REFERENCES metas (id) ON DELETE CASCADE
+            );
             """
         )
+        connection.commit()
+        self._apply_migrations(connection)
+
+    def _apply_migrations(self, connection: sqlite3.Connection) -> None:
+        """Aplica alterações incrementais nas tabelas existentes preservando os dados."""
+        # 1. Tabela usuarios: foto_perfil e renda_mensal
+        cursor = connection.execute("PRAGMA table_info(usuarios)")
+        colunas_usuarios = [row["name"] for row in cursor.fetchall()]
+        if "foto_perfil" not in colunas_usuarios:
+            connection.execute("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT")
+        if "renda_mensal" not in colunas_usuarios:
+            connection.execute("ALTER TABLE usuarios ADD COLUMN renda_mensal REAL DEFAULT 0.0")
+
+        # 2. Tabela terceiros: foto_perfil
+        cursor = connection.execute("PRAGMA table_info(terceiros)")
+        colunas_terceiros = [row["name"] for row in cursor.fetchall()]
+        if "foto_perfil" not in colunas_terceiros:
+            connection.execute("ALTER TABLE terceiros ADD COLUMN foto_perfil TEXT")
+
+        # 3. Tabela metas: concluida, data_conclusao, celebracao_exibida
+        cursor = connection.execute("PRAGMA table_info(metas)")
+        colunas_metas = [row["name"] for row in cursor.fetchall()]
+        if "concluida" not in colunas_metas:
+            connection.execute("ALTER TABLE metas ADD COLUMN concluida INTEGER DEFAULT 0")
+        if "data_conclusao" not in colunas_metas:
+            connection.execute("ALTER TABLE metas ADD COLUMN data_conclusao TEXT")
+        if "celebracao_exibida" not in colunas_metas:
+            connection.execute("ALTER TABLE metas ADD COLUMN celebracao_exibida INTEGER DEFAULT 0")
+
         connection.commit()
 
     def close(self) -> None:

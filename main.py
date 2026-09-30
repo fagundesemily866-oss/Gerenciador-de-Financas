@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from models.database import Database
+from views.tema import COR_FUNDO_PRINCIPAL
 from views.login_view import LoginView
 from views.menu_view import MenuView
 
@@ -79,8 +80,8 @@ def main() -> None:
     # ------------------------------------------------------------------
     app = ctk.CTk()
     app.title("Gerenciador de Finanças Pessoais")
-    app.geometry("1100x700")
-    app.minsize(950, 650)
+    app.geometry("1280x800")
+    app.minsize(1050, 680)
 
     # ------------------------------------------------------------------
     # 2.1. Define o ícone personalizado da janela
@@ -94,9 +95,9 @@ def main() -> None:
             pass  # Fallback silencioso se o SO não suportar
 
     # ------------------------------------------------------------------
-    # 2.2. Configura a cor de fundo da janela principal (verde escuro)
+    # 2.2. Configura a cor de fundo da janela principal
     # ------------------------------------------------------------------
-    app.configure(fg_color="#0B1D1F")
+    app.configure(fg_color="#0B131B")
 
     # ------------------------------------------------------------------
     # 3. Inicia o gerenciador de telas (Login → Menu)

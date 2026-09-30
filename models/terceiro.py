@@ -4,12 +4,21 @@ from datetime import date
 class Terceiro:
     """Modelo representando um Terceiro (contato, fornecedor, cliente, etc.)."""
 
-    def __init__(self, id=None, usuario_id=None, nome="", relacao="", data_criacao=None):
+    def __init__(self, id=None, usuario_id=None, nome="", relacao="", data_criacao=None, foto_perfil=None):
         self._id = id
         self._usuario_id = usuario_id
         self._nome = nome
         self._relacao = relacao
         self._data_criacao = data_criacao or date.today().strftime("%Y-%m-%d")
+        self._foto_perfil = foto_perfil
+
+    @property
+    def foto_perfil(self):
+        return self._foto_perfil
+
+    @foto_perfil.setter
+    def foto_perfil(self, nova_foto):
+        self._foto_perfil = nova_foto
 
     @property
     def id(self):
@@ -68,6 +77,7 @@ class Terceiro:
             "nome": self._nome,
             "relacao": self._relacao,
             "data_criacao": str(self._data_criacao),
+            "foto_perfil": self._foto_perfil,
         }
 
     def __repr__(self):

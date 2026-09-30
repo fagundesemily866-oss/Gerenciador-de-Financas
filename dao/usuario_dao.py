@@ -23,16 +23,18 @@ class UsuarioDAO:
         senha_hash: str,
         tipo_perfil: str = "PF",
         data_criacao: Optional[str] = None,
+        foto_perfil: Optional[str] = None,
+        renda_mensal: float = 0.0,
     ) -> int:
         """Insere um novo usuário e retorna o ID gerado."""
         data_criacao = data_criacao or date.today().strftime("%Y-%m-%d")
         conn = self.db.get_connection()
         cursor = conn.execute(
             """
-            INSERT INTO usuarios (nome, email, senha_hash, tipo_perfil, data_criacao)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO usuarios (nome, email, senha_hash, tipo_perfil, data_criacao, foto_perfil, renda_mensal)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (nome.strip(), email.strip().lower(), senha_hash, tipo_perfil, data_criacao),
+            (nome.strip(), email.strip().lower(), senha_hash, tipo_perfil, data_criacao, foto_perfil, float(renda_mensal or 0.0)),
         )
         conn.commit()
         return cursor.lastrowid
@@ -41,7 +43,7 @@ class UsuarioDAO:
         """Busca um usuário pelo seu ID."""
         conn = self.db.get_connection()
         cursor = conn.execute(
-            "SELECT id, nome, email, senha_hash, tipo_perfil, data_criacao FROM usuarios WHERE id = ?",
+            "SELECT id, nome, email, senha_hash, tipo_perfil, data_criacao, foto_perfil, renda_mensal FROM usuarios WHERE id = ?",
             (usuario_id,),
         )
         row = cursor.fetchone()
@@ -51,7 +53,7 @@ class UsuarioDAO:
         """Busca um usuário pelo email."""
         conn = self.db.get_connection()
         cursor = conn.execute(
-            "SELECT id, nome, email, senha_hash, tipo_perfil, data_criacao FROM usuarios WHERE email = ?",
+            "SELECT id, nome, email, senha_hash, tipo_perfil, data_criacao, foto_perfil, renda_mensal FROM usuarios WHERE email = ?",
             (email.strip().lower(),),
         )
         row = cursor.fetchone()
@@ -61,7 +63,7 @@ class UsuarioDAO:
         """Retorna todos os usuários cadastrados."""
         conn = self.db.get_connection()
         cursor = conn.execute(
-            "SELECT id, nome, email, senha_hash, tipo_perfil, data_criacao FROM usuarios ORDER BY nome ASC"
+            "SELECT id, nome, email, senha_hash, tipo_perfil, data_criacao, foto_perfil, renda_mensal FROM usuarios ORDER BY nome ASC"
         )
         return [dict(row) for row in cursor.fetchall()]
 
@@ -71,16 +73,47 @@ class UsuarioDAO:
         nome: str,
         email: str,
         tipo_perfil: str,
+        renda_mensal: Optional[float] = None,
     ) -> bool:
         """Atualiza informações cadastrais do usuário (exceto senha)."""
         conn = self.db.get_connection()
+        if renda_mensal is not None:
+            cursor = conn.execute(
+                """
+                UPDATE usuarios
+                SET nome = ?, email = ?, tipo_perfil = ?, renda_mensal = ?
+                WHERE id = ?
+                """,
+                (nome.strip(), email.strip().lower(), tipo_perfil, float(renda_mensal), usuario_id),
+            )
+        else:
+            cursor = conn.execute(
+                """
+                UPDATE usuarios
+                SET nome = ?, email = ?, tipo_perfil = ?
+                WHERE id = ?
+                """,
+                (nome.strip(), email.strip().lower(), tipo_perfil, usuario_id),
+            )
+        conn.commit()
+        return cursor.rowcount > 0
+
+    def atualizar_foto(self, usuario_id: int, caminho_foto: Optional[str]) -> bool:
+        """Atualiza ou remove a foto de perfil do usuário."""
+        conn = self.db.get_connection()
         cursor = conn.execute(
-            """
-            UPDATE usuarios
-            SET nome = ?, email = ?, tipo_perfil = ?
-            WHERE id = ?
-            """,
-            (nome.strip(), email.strip().lower(), tipo_perfil, usuario_id),
+            "UPDATE usuarios SET foto_perfil = ? WHERE id = ?",
+            (caminho_foto, usuario_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+    def atualizar_renda(self, usuario_id: int, renda_mensal: float) -> bool:
+        """Atualiza a renda mensal cadastrada para o usuário."""
+        conn = self.db.get_connection()
+        cursor = conn.execute(
+            "UPDATE usuarios SET renda_mensal = ? WHERE id = ?",
+            (float(renda_mensal or 0.0), usuario_id),
         )
         conn.commit()
         return cursor.rowcount > 0

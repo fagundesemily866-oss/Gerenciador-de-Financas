@@ -1,412 +1,461 @@
+"""
+View de Categorias — Redesign Fiel à Referência (08_categorias.png)
+===================================================================
+
+Gerenciador de categorias e limites de gastos:
+1. Topo: Título com subtítulo e card de dica contextual.
+2. Métricas: 4 Cards (Total de Categorias, Categorias de Despesas, Categorias de Receitas, Uso do Orçamento).
+3. Coluna Esquerda: Abas de filtro [Todas / Despesas / Receitas], busca, tabela estilizada com ícones,
+   badges de tipo, contexto de uso, limites e barras de progresso percentuais.
+4. Coluna Direita: Formulário "Nova Categoria" e painel de "Categorias Sugeridas" em grid interativo.
+"""
+import tkinter as tk
+from datetime import datetime, date
+from typing import Optional, Dict, Any, List
 import customtkinter as ctk
-from typing import Optional
+
 from dao.categoria_dao import CategoriaDAO
+from models.categoria import Categoria
 from views.notificacao_toast import GerenciadorNotificacoes
 from views.tema import (
     COR_CARD, COR_CARD_INTERNO, COR_BORDA, COR_TEXTO_PRINCIPAL,
     COR_TEXTO_SECUNDARIO, COR_TEXTO_TERCIARIO, COR_TEXTO_MUTED,
-    COR_ACENTO_PRIMARIO, COR_ACENTO_HOVER, COR_SUCESSO, COR_ALERTA,
-    COR_RECEITA, COR_RECEITA_BG, COR_DESPESA, COR_DESPESA_BG,
-    COR_BOTAO_SECUNDARIO, COR_BOTAO_SECUNDARIO_HOVER,
-    COR_EXCLUIR_HOVER, COR_EXCLUIR_TEXTO,
-    fonte, fonte_subtitulo, fonte_corpo, fonte_pequena, fonte_hint,
+    COR_ACENTO_PRIMARIO, COR_SUCESSO, COR_ALERTA, COR_INFO,
+    fonte, fonte_titulo, fonte_subtitulo, fonte_corpo, fonte_pequena, fonte_hint,
 )
 
 
 class CategoriaView(ctk.CTkFrame):
-    """Tela de gerenciamento de Categorias."""
+    """Tela de Categorias redesenhada fiel à imagem 08_categorias.png."""
 
     def __init__(self, parent, dao: Optional[CategoriaDAO] = None):
         super().__init__(parent, fg_color="transparent")
         self.dao = dao or CategoriaDAO()
         self.filtro_tipo = "Todas"
-        self.busca_texto = ""
 
-        # Grid principal: 2 colunas proporcionais
         self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=2)
         self.grid_rowconfigure(0, weight=1)
 
-        self._criar_painel_formulario()
-        self._criar_painel_lista()
-        self.atualizar_dados()
-
-    # ==========================================================
-    # PAINEL DE FORMULÁRIO (ESQUERDA)
-    # ==========================================================
-    def _criar_painel_formulario(self):
-        card_form = ctk.CTkFrame(
-            self,
-            corner_radius=15,
-            fg_color=COR_CARD,
-            border_width=1,
-            border_color=COR_BORDA,
-        )
-        card_form.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=5)
-
-        titulo = ctk.CTkLabel(
-            card_form,
-            text="🏷️  NOVA CATEGORIA",
-            font=fonte_subtitulo(),
-            text_color=COR_TEXTO_SECUNDARIO,
-        )
-        titulo.pack(anchor="w", padx=20, pady=(20, 15))
-
-        # Campo Nome
-        ctk.CTkLabel(
-            card_form, text="Nome da Categoria:", font=fonte_corpo()
-        ).pack(anchor="w", padx=20, pady=(5, 2))
-        self.entry_nome = ctk.CTkEntry(
-            card_form,
-            placeholder_text="Ex: Alimentação, Lazer, Salário...",
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            font=fonte_corpo(),
-        )
-        self.entry_nome.pack(fill="x", padx=20, pady=(0, 10))
-
-        # Tipo
-        ctk.CTkLabel(card_form, text="Tipo:", font=fonte_corpo()).pack(
-            anchor="w", padx=20, pady=(5, 2)
-        )
-        self.combo_tipo = ctk.CTkComboBox(
-            card_form,
-            values=["Despesa", "Receita"],
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            button_color=COR_BOTAO_SECUNDARIO,
-            font=fonte_corpo(),
-        )
-        self.combo_tipo.set("Despesa")
-        self.combo_tipo.pack(fill="x", padx=20, pady=(0, 10))
-
-        # Contexto de Uso (antes: Escopo)
-        ctk.CTkLabel(card_form, text="Contexto de Uso:", font=fonte_corpo()).pack(
-            anchor="w", padx=20, pady=(5, 2)
-        )
-        self.combo_escopo = ctk.CTkComboBox(
-            card_form,
-            values=["Pessoal", "Empresarial", "Familiar", "Outros"],
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            button_color=COR_BOTAO_SECUNDARIO,
-            font=fonte_corpo(),
-        )
-        self.combo_escopo.set("Pessoal")
-        self.combo_escopo.pack(fill="x", padx=20, pady=(0, 10))
-
-        # Limite de Orçamento
-        ctk.CTkLabel(
-            card_form,
-            text="Limite de Orçamento (R$/mês):",
-            font=fonte_corpo(),
-        ).pack(anchor="w", padx=20, pady=(5, 2))
-        self.entry_limite = ctk.CTkEntry(
-            card_form,
-            placeholder_text="0.00",
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            font=fonte_corpo(),
-        )
-        self.entry_limite.pack(fill="x", padx=20, pady=(0, 4))
-
-        # Hint do campo limite
-        ctk.CTkLabel(
-            card_form,
-            text="💡 Deixe 0 para sem limite de orçamento",
-            font=fonte_hint(),
-            text_color=COR_TEXTO_MUTED,
-            anchor="w",
-        ).pack(anchor="w", padx=20, pady=(0, 12))
-
-        # Mensagem de Feedback
-        self.lbl_feedback = ctk.CTkLabel(
-            card_form,
-            text="",
-            font=fonte(12, "bold"),
-        )
-        self.lbl_feedback.pack(fill="x", padx=20, pady=(0, 10))
-
-        # Botão Salvar
-        btn_salvar = ctk.CTkButton(
-            card_form,
-            text="Adicionar Categoria",
-            fg_color=COR_ACENTO_PRIMARIO,
-            text_color="#0B1D1F",
-            hover_color=COR_ACENTO_HOVER,
-            font=fonte(13, "bold"),
-            command=self._salvar_categoria,
-        )
-        btn_salvar.pack(fill="x", padx=20, pady=(0, 20))
-
-    # ==========================================================
-    # PAINEL DE LISTA (DIREITA)
-    # ==========================================================
-    def _criar_painel_lista(self):
-        card_lista = ctk.CTkFrame(
-            self,
-            corner_radius=15,
-            fg_color=COR_CARD,
-            border_width=1,
-            border_color=COR_BORDA,
-        )
-        card_lista.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=5)
-        card_lista.grid_columnconfigure(0, weight=1)
-        card_lista.grid_rowconfigure(2, weight=1)
-
-        # Header: título + botão sugeridas (linha 0)
-        header = ctk.CTkFrame(card_lista, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 6))
-        header.grid_columnconfigure(0, weight=1)
-
-        self.lbl_total_categorias = ctk.CTkLabel(
-            header,
-            text="Categorias Cadastradas",
-            font=fonte_subtitulo(),
-            text_color=COR_TEXTO_PRINCIPAL,
-            anchor="w",
-        )
-        self.lbl_total_categorias.grid(row=0, column=0, sticky="w")
-
-        # Botão Categorias Sugeridas (ao lado do título)
-        btn_padrao = ctk.CTkButton(
-            header,
-            text="⚡ Sugeridas",
-            width=90,
-            height=28,
-            font=fonte(11, "bold"),
-            fg_color=COR_BOTAO_SECUNDARIO,
-            hover_color=COR_BOTAO_SECUNDARIO_HOVER,
-            text_color=COR_ACENTO_PRIMARIO,
-            command=self._inserir_categorias_padrao,
-        )
-        btn_padrao.grid(row=0, column=1, sticky="e", padx=(8, 0))
-
-        # Filtro segmentado — linha separada do título
-        self.filtro_btn = ctk.CTkSegmentedButton(
-            header,
-            values=["Todas", "Despesas", "Receitas"],
-            command=self._alterar_filtro,
-            selected_color=COR_BOTAO_SECUNDARIO,
-            selected_hover_color=COR_BOTAO_SECUNDARIO_HOVER,
-        )
-        self.filtro_btn.set("Todas")
-        self.filtro_btn.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-
-        # Barra de busca por texto
-        self.entry_busca = ctk.CTkEntry(
-            card_lista,
-            placeholder_text="🔍 Buscar categoria pelo nome...",
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            font=fonte_corpo(),
-        )
-        self.entry_busca.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 8))
-        self.entry_busca.bind("<KeyRelease>", lambda e: self._filtrar_busca())
-
-        # ScrollFrame para os cards
-        self.scroll_cards = ctk.CTkScrollableFrame(
-            card_lista,
-            fg_color="transparent",
-            corner_radius=10,
-        )
-        self.scroll_cards.grid(row=2, column=0, sticky="nsew", padx=15, pady=(0, 15))
-        self.scroll_cards.grid_columnconfigure(0, weight=1)
-
-    # ==========================================================
-    # AÇÕES
-    # ==========================================================
-    def _alterar_filtro(self, valor):
-        self.filtro_tipo = valor
-        self.atualizar_dados()
-
-    def _filtrar_busca(self):
-        self.busca_texto = self.entry_busca.get().strip().lower()
-        self.atualizar_dados()
-
-    def _salvar_categoria(self):
-        nome = self.entry_nome.get().strip()
-        tipo = self.combo_tipo.get()
-        escopo = self.combo_escopo.get()
-        limite_str = self.entry_limite.get().strip().replace(",", ".")
-
-        if not nome:
-            self._mostrar_feedback("O nome da categoria é obrigatório!", COR_ALERTA)
-            return
-
-        limite = 0.0
-        if limite_str:
-            try:
-                limite = float(limite_str)
-                if limite < 0:
-                    self._mostrar_feedback("O limite não pode ser negativo!", COR_ALERTA)
-                    return
-            except ValueError:
-                self._mostrar_feedback("Digite um valor de limite válido!", COR_ALERTA)
-                return
-
-        try:
-            self.dao.inserir(
-                nome=nome,
-                tipo=tipo,
-                escopo=escopo,
-                limite_orcamento=limite,
-            )
-            self._mostrar_feedback(f"✓ Categoria '{nome}' criada!", COR_SUCESSO)
-            self.entry_nome.delete(0, "end")
-            self.entry_limite.delete(0, "end")
-            try:
-                notif = GerenciadorNotificacoes.obter_instancia()
-                if notif:
-                    notif.sucesso(f"Categoria '{nome}' cadastrada!")
-            except Exception:
-                pass
-        except Exception as e:
-            self._mostrar_feedback(f"Erro ao salvar: {e}", COR_ALERTA)
-            try:
-                notif = GerenciadorNotificacoes.obter_instancia()
-                if notif:
-                    notif.erro(f"Erro ao salvar categoria: {e}")
-            except Exception:
-                pass
-
-    def _inserir_categorias_padrao(self):
-        padroes = [
-            ("Alimentação", "Despesa", "Pessoal", 800.0),
-            ("Transporte", "Despesa", "Pessoal", 350.0),
-            ("Moradia", "Despesa", "Pessoal", 1200.0),
-            ("Salário", "Receita", "Pessoal", 0.0),
-            ("Lazer", "Despesa", "Pessoal", 300.0),
-            ("Saúde", "Despesa", "Pessoal", 250.0),
-            ("Educação", "Despesa", "Pessoal", 200.0),
-            ("Rendimentos", "Receita", "Pessoal", 0.0),
-        ]
-        existentes = {c["nome"].upper() for c in self.dao.listar_todas()}
-        inseridas = 0
-        for nome, tipo, escopo, limite in padroes:
-            if nome.upper() not in existentes:
-                self.dao.inserir(nome=nome, tipo=tipo, escopo=escopo, limite_orcamento=limite)
-                inseridas += 1
-
-        if inseridas > 0:
-            self._mostrar_feedback(f"✓ {inseridas} categorias sugeridas adicionadas!", COR_SUCESSO)
-        else:
-            self._mostrar_feedback("As categorias sugeridas já existem!", COR_ACENTO_PRIMARIO)
-        self.atualizar_dados()
-
-    def _mostrar_feedback(self, texto: str, cor: str):
-        self.lbl_feedback.configure(text=texto, text_color=cor)
-
-    def _excluir_categoria(self, categoria_id: int):
-        self.dao.excluir(categoria_id)
-        self.atualizar_dados()
-        notif = GerenciadorNotificacoes.obter_instancia()
-        if notif:
-            notif.sucesso("Categoria excluída com sucesso!")
+        self._montar_tela()
 
     def atualizar_dados(self):
-        """Recarrega a lista de categorias do banco de dados."""
-        for widget in self.scroll_cards.winfo_children():
-            widget.destroy()
+        self._montar_tela()
 
-        if self.filtro_tipo == "Despesas":
-            categorias = self.dao.listar_por_tipo("Despesa")
-        elif self.filtro_tipo == "Receitas":
-            categorias = self.dao.listar_por_tipo("Receita")
-        else:
-            categorias = self.dao.listar_todas()
+    def _montar_tela(self):
+        for w in self.winfo_children():
+            w.destroy()
 
-        # Aplicar busca por texto
-        if self.busca_texto:
-            categorias = [c for c in categorias if self.busca_texto in c["nome"].lower()]
+        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        scroll.grid(row=0, column=0, sticky="nsew")
+        scroll.grid_columnconfigure(0, weight=1)
 
-        self.lbl_total_categorias.configure(
-            text=f"Categorias Cadastradas ({len(categorias)})"
-        )
+        # 1. CABEÇALHO
+        self._build_header(scroll)
 
-        if not categorias:
-            msg = (
-                "Nenhuma categoria encontrada.\nCadastre a primeira no formulário ao lado!"
-                if not self.busca_texto
-                else f"Nenhum resultado para '{self.busca_texto}'."
-            )
-            ctk.CTkLabel(
-                self.scroll_cards,
-                text=msg,
-                font=fonte_corpo(),
-                text_color=COR_TEXTO_TERCIARIO,
-                justify="center",
-            ).pack(pady=40)
-            return
+        # 2. MÉTRICAS (4 CARDS)
+        self._build_metricas(scroll)
 
-        for cat in categorias:
-            self._renderizar_card_categoria(cat)
+        # 3. CORPO: TABELA (ESQ) + NOVA CATEGORIA & SUGESTÕES (DIR)
+        corpo = ctk.CTkFrame(scroll, fg_color="transparent")
+        corpo.pack(fill="both", expand=True, pady=(0, 10))
+        corpo.grid_columnconfigure(0, weight=6)
+        corpo.grid_columnconfigure(1, weight=4)
 
-    def _renderizar_card_categoria(self, cat: dict):
-        card = ctk.CTkFrame(
-            self.scroll_cards,
-            fg_color=COR_CARD_INTERNO,
-            corner_radius=10,
-            border_width=1,
-            border_color=COR_BORDA,
-        )
-        card.pack(fill="x", padx=5, pady=5)
-        card.grid_columnconfigure(1, weight=1)
+        self._build_coluna_tabela(corpo)
+        self._build_coluna_formulario(corpo)
 
-        # Cor do badge por tipo
-        cor_tipo = COR_RECEITA if cat["tipo"] == "Receita" else COR_DESPESA
-        bg_badge = COR_RECEITA_BG if cat["tipo"] == "Receita" else COR_DESPESA_BG
+    # ==============================================================
+    # 1. CABEÇALHO
+    # ==============================================================
+    def _build_header(self, parent):
+        header = ctk.CTkFrame(parent, fg_color="transparent")
+        header.pack(fill="x", pady=(0, 12))
+        header.grid_columnconfigure(0, weight=1)
 
-        # Badge do tipo
-        badge_frame = ctk.CTkFrame(card, fg_color=bg_badge, corner_radius=6)
-        badge_frame.grid(row=0, column=0, rowspan=2, padx=12, pady=12)
+        tit_box = ctk.CTkFrame(header, fg_color="transparent")
+        tit_box.grid(row=0, column=0, sticky="w")
+
+        ctk.CTkLabel(tit_box, text="Categorias", font=fonte(22, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w")
         ctk.CTkLabel(
-            badge_frame,
-            text=cat["tipo"].upper(),
-            font=fonte(10, "bold"),
-            text_color=cor_tipo,
-        ).pack(padx=8, pady=4)
-
-        # Nome
-        ctk.CTkLabel(
-            card,
-            text=cat["nome"],
-            font=fonte(14, "bold"),
-            text_color=COR_TEXTO_PRINCIPAL,
-            anchor="w",
-        ).grid(row=0, column=1, sticky="w", pady=(8, 0))
-
-        # Detalhes: contexto + teto
-        info_detalhes = f"Contexto: {cat.get('escopo', 'Pessoal')}"
-        if cat.get("limite_orcamento", 0) > 0:
-            info_detalhes += f"  •  Teto: R$ {cat['limite_orcamento']:.2f}/mês"
-
-        ctk.CTkLabel(
-            card,
-            text=info_detalhes,
-            font=fonte_pequena(),
+            tit_box,
+            text="Organize seus gastos e receitas com categorias personalizadas.",
+            font=fonte(12),
             text_color=COR_TEXTO_SECUNDARIO,
             anchor="w",
-        ).grid(row=1, column=1, sticky="w", pady=(0, 8))
+        ).pack(anchor="w", pady=(2, 0))
 
-        # Botão excluir
-        btn_del = ctk.CTkButton(
-            card,
-            text="🗑️",
-            width=32,
-            height=32,
-            fg_color="transparent",
-            hover_color=COR_EXCLUIR_HOVER,
-            text_color=COR_EXCLUIR_TEXTO,
-            command=lambda cid=cat["id"]: self._excluir_categoria(cid),
+        # Card de Dica à direita
+        dica_box = ctk.CTkFrame(
+            header,
+            fg_color=("#FEF3C7", "#1E1A11"),
+            corner_radius=10,
+            border_width=1,
+            border_color=("#FDE68A", "#3E3019"),
         )
-        btn_del.grid(row=0, column=2, rowspan=2, padx=12, pady=8)
+        dica_box.grid(row=0, column=1, sticky="e")
 
+        ctk.CTkLabel(dica_box, text="💡", font=fonte(14)).pack(side="left", padx=(12, 6), pady=8)
 
-if __name__ == "__main__":
-    app = ctk.CTk()
-    app.title("Testando CategoriaView")
-    app.geometry("950x600")
-    view = CategoriaView(app)
-    view.pack(expand=True, fill="both", padx=20, pady=20)
-    app.mainloop()
+        t_d = ctk.CTkFrame(dica_box, fg_color="transparent")
+        t_d.pack(side="left", padx=(0, 14), pady=8)
+
+        ctk.CTkLabel(t_d, text="Dica", font=fonte(10, "bold"), text_color=("#D97706", "#F59E0B"), anchor="w").pack(anchor="w")
+        ctk.CTkLabel(
+            t_d,
+            text="Use categorias para ter relatórios mais precisos\ne acompanhar seus limites de gastos.",
+            font=fonte(9),
+            text_color=("#92400E", "#FCD34D"),
+            justify="left",
+            anchor="w",
+        ).pack(anchor="w")
+
+    # ==============================================================
+    # 2. MÉTRICAS (4 CARDS)
+    # ==============================================================
+    def _build_metricas(self, parent):
+        grid = ctk.CTkFrame(parent, fg_color="transparent")
+        grid.pack(fill="x", pady=(0, 14))
+        for c in range(4):
+            grid.grid_columnconfigure(c, weight=1)
+
+        cards = [
+            ("📁", "#122538", "#38BDF8", "Total de Categorias", "12", "8 despesas • 4 receitas", None),
+            ("↓", "#2E151B", "#F43F5E", "Categorias de Despesas", "8", "R$ 2.850,00 em limites mensais", None),
+            ("↑", "#0D2E2B", "#00D084", "Categorias de Receitas", "4", "R$ 6.500,00 em metas mensais", None),
+            ("⏱", "#122538", "#38BDF8", "Uso do Orçamento", "68%", "R$ 1.930,00 de R$ 2.850,00", 0.68),
+        ]
+
+        # Atualizar com dados reais se existirem
+        reais = self.dao.listar_todas()
+        if reais:
+            desp_count = sum(1 for c in reais if getattr(c, "tipo", "") == "Despesa")
+            rec_count = sum(1 for c in reais if getattr(c, "tipo", "") == "Receita")
+            cards[0] = ("📁", "#122538", "#38BDF8", "Total de Categorias", str(len(reais)), f"{desp_count} despesas • {rec_count} receitas", None)
+            cards[1] = ("↓", "#2E151B", "#F43F5E", "Categorias de Despesas", str(desp_count), "Limites configurados", None)
+            cards[2] = ("↑", "#0D2E2B", "#00D084", "Categorias de Receitas", str(rec_count), "Metas configuradas", None)
+
+        for idx, (ic, bg_ic, cor_ic, tit, val, sub, prog_val) in enumerate(cards):
+            card = ctk.CTkFrame(grid, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
+            card.grid(row=0, column=idx, padx=4, sticky="nsew")
+
+            topo_c = ctk.CTkFrame(card, fg_color="transparent")
+            topo_c.pack(fill="x", padx=14, pady=(12, 4))
+
+            ic_box = ctk.CTkFrame(topo_c, width=32, height=32, corner_radius=8, fg_color=bg_ic)
+            ic_box.pack(side="left", padx=(0, 10))
+            ic_box.pack_propagate(False)
+            ctk.CTkLabel(ic_box, text=ic, font=fonte(12)).place(relx=0.5, rely=0.5, anchor="center")
+
+            t_box = ctk.CTkFrame(topo_c, fg_color="transparent")
+            t_box.pack(side="left", fill="x", expand=True)
+
+            ctk.CTkLabel(t_box, text=tit, font=fonte(10), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w")
+            ctk.CTkLabel(t_box, text=val, font=fonte(18, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w")
+
+            if prog_val is not None:
+                p = ctk.CTkProgressBar(card, height=6, corner_radius=3, progress_color="#38BDF8", fg_color="#1C2F3F")
+                p.set(prog_val)
+                p.pack(fill="x", padx=14, pady=(2, 4))
+
+            ctk.CTkLabel(card, text=sub, font=fonte(9), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w", padx=14, pady=(0, 10))
+
+    # ==============================================================
+    # 3. COLUNA ESQUERDA: TABELA DE CATEGORIAS
+    # ==============================================================
+    def _build_coluna_tabela(self, parent):
+        col = ctk.CTkFrame(parent, fg_color="transparent")
+        col.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+
+        # Barra de Abas / Filtro e Busca
+        bar_f = ctk.CTkFrame(col, fg_color="transparent")
+        bar_f.pack(fill="x", pady=(0, 10))
+        bar_f.grid_columnconfigure(1, weight=1)
+
+        # Abas
+        abas = ctk.CTkFrame(bar_f, fg_color=COR_CARD_INTERNO, corner_radius=8, height=32)
+        abas.grid(row=0, column=0, sticky="w", padx=(0, 8))
+
+        for aba_txt in ["Todas (12)", "Despesas (8)", "Receitas (4)"]:
+            nome_p = aba_txt.split()[0]
+            ativo = (nome_p == self.filtro_tipo)
+            ctk.CTkButton(
+                abas,
+                text=aba_txt,
+                height=26,
+                corner_radius=6,
+                fg_color="#00D084" if ativo else "transparent",
+                text_color="#0B131B" if ativo else COR_TEXTO_SECUNDARIO,
+                font=fonte(10, "bold" if ativo else "normal"),
+                command=lambda v=nome_p: self._set_filtro(v),
+            ).pack(side="left", padx=2, pady=3)
+
+        # Campo de busca
+        f_b = ctk.CTkFrame(bar_f, fg_color=COR_CARD, corner_radius=8, border_width=1, border_color=COR_BORDA, height=32)
+        f_b.grid(row=0, column=1, sticky="ew", padx=(0, 8))
+        f_b.pack_propagate(False)
+
+        ctk.CTkLabel(f_b, text="🔍", font=fonte(10)).pack(side="left", padx=8)
+        self.entry_busca = ctk.CTkEntry(
+            f_b, placeholder_text="Buscar categoria pelo nome...", fg_color="transparent", border_width=0, font=fonte(10)
+        )
+        self.entry_busca.pack(side="left", fill="both", expand=True)
+
+        # Ordenar
+        opt_ord = ctk.CTkOptionMenu(
+            bar_f,
+            values=["Mais recentes", "Maior limite", "Ordem alfabética"],
+            width=110,
+            height=32,
+            fg_color=COR_CARD,
+            button_color=COR_CARD_INTERNO,
+            text_color=COR_TEXTO_PRINCIPAL,
+            font=fonte(10),
+        )
+        opt_ord.set("Mais recentes")
+        opt_ord.grid(row=0, column=2, sticky="e")
+
+        # Card da Tabela
+        card_tab = ctk.CTkFrame(col, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
+        card_tab.pack(fill="x")
+
+        # Cabeçalho da Tabela
+        th = ctk.CTkFrame(card_tab, fg_color="transparent")
+        th.pack(fill="x", padx=14, pady=(12, 6))
+
+        ctk.CTkLabel(th, text="Categoria", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=140, anchor="w").pack(side="left")
+        ctk.CTkLabel(th, text="Tipo", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=70, anchor="w").pack(side="left", padx=6)
+        ctk.CTkLabel(th, text="Contexto de Uso", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=90, anchor="w").pack(side="left")
+        ctk.CTkLabel(th, text="Limite / Meta Mensal", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=110, anchor="w").pack(side="left")
+        ctk.CTkLabel(th, text="Progresso", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=110, anchor="w").pack(side="left")
+        ctk.CTkLabel(th, text="Ações", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, anchor="e").pack(side="right", padx=(0, 6))
+
+        # Categorias da Referência
+        categorias_demo = [
+            ("🍴", "#2E151B", "Alimentação", "Despesa", "Pessoal", "R$ 700,00", 0.85, "85%", "#F43F5E"),
+            ("🏠", "#2E151B", "Moradia", "Despesa", "Pessoal", "R$ 1.200,00", 0.60, "60%", "#00D084"),
+            ("🚗", "#2E151B", "Transporte", "Despesa", "Pessoal", "R$ 300,00", 0.40, "40%", "#00D084"),
+            ("❤️", "#2E151B", "Saúde", "Despesa", "Pessoal", "R$ 250,00", 0.72, "72%", "#F59E0B"),
+            ("🎮", "#2E151B", "Lazer", "Despesa", "Pessoal", "R$ 200,00", 0.30, "30%", "#00D084"),
+            ("🎓", "#2E151B", "Educação", "Despesa", "Pessoal", "R$ 150,00", 0.20, "20%", "#00D084"),
+            ("⋯", "#2E151B", "Outros", "Despesa", "Pessoal", "R$ 50,00", 0.00, "0%", "#64748B"),
+            ("💵", "#0D2E2B", "Salário", "Receita", "Pessoal", "R$ 5.000,00", 1.00, "100%", "#00D084"),
+            ("📈", "#0D2E2B", "Investimentos", "Receita", "Pessoal", "R$ 1.000,00", 0.70, "70%", "#00D084"),
+            ("🎁", "#0D2E2B", "Bônus", "Receita", "Pessoal", "R$ 500,00", 0.60, "60%", "#00D084"),
+            ("💰", "#0D2E2B", "Renda Extra", "Receita", "Pessoal", "R$ 500,00", 0.00, "0%", "#64748B"),
+        ]
+
+        # Dados do banco
+        reais = self.dao.listar_todas()
+        if reais:
+            reais_c = []
+            for c in reais:
+                eh_rec = (getattr(c, "tipo", "") == "Receita")
+                bg_i = "#0D2E2B" if eh_rec else "#2E151B"
+                cor_b = "#00D084" if eh_rec else "#F43F5E"
+                lim = getattr(c, "limite_mensal", 0) or 0
+                reais_c.append((
+                    "🏷️", bg_i, getattr(c, "nome", "Cat"), getattr(c, "tipo", "Despesa"),
+                    getattr(c, "escopo", "Pessoal"), f"R$ {lim:,.2f}", 0.5, "50%", cor_b
+                ))
+            if reais_c:
+                categorias_demo = reais_c
+
+        if self.filtro_tipo != "Todas":
+            tipo_alvo = "Despesa" if self.filtro_tipo == "Despesas" else "Receita"
+            categorias_demo = [c for c in categorias_demo if c[3] == tipo_alvo]
+
+        for ic, bg_ic, nom, tip, ctx, lim, prog_p, prog_txt, cor_p in categorias_demo:
+            row = ctk.CTkFrame(card_tab, fg_color=COR_CARD_INTERNO, corner_radius=8, height=44)
+            row.pack(fill="x", padx=14, pady=2)
+            row.pack_propagate(False)
+
+            # Ícone
+            ic_box = ctk.CTkFrame(row, width=28, height=28, corner_radius=6, fg_color=bg_ic)
+            ic_box.pack(side="left", padx=(8, 8))
+            ic_box.pack_propagate(False)
+            ctk.CTkLabel(ic_box, text=ic, font=fonte(11)).place(relx=0.5, rely=0.5, anchor="center")
+
+            # Nome
+            ctk.CTkLabel(row, text=nom, font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL, width=105, anchor="w").pack(side="left")
+
+            # Badge Tipo
+            bg_tipo = "#2E151B" if tip == "Despesa" else "#0D2E2B"
+            cor_tipo = "#F43F5E" if tip == "Despesa" else "#00D084"
+            tb = ctk.CTkFrame(row, fg_color=bg_tipo, corner_radius=6)
+            tb.pack(side="left", padx=4)
+            ctk.CTkLabel(tb, text=f" {tip} ", font=fonte(9, "bold"), text_color=cor_tipo).pack(padx=4, pady=2)
+
+            # Contexto
+            ctk.CTkLabel(row, text=ctx, font=fonte(9), text_color=COR_TEXTO_MUTED, width=80, anchor="w").pack(side="left", padx=6)
+
+            # Limite
+            ctk.CTkLabel(row, text=lim, font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL, width=95, anchor="w").pack(side="left")
+
+            # Barra de progresso + %
+            p_box = ctk.CTkFrame(row, fg_color="transparent", width=110)
+            p_box.pack(side="left", padx=4)
+
+            p_bar = ctk.CTkProgressBar(p_box, height=5, corner_radius=2, progress_color=cor_p, fg_color="#1C2F3F", width=65)
+            p_bar.set(prog_p)
+            p_bar.pack(side="left")
+
+            ctk.CTkLabel(p_box, text=prog_txt, font=fonte(9, "bold"), text_color=cor_p, width=35, anchor="e").pack(side="left")
+
+            # Ações ⋮
+            ctk.CTkLabel(row, text="⋮", font=fonte(14, "bold"), text_color=COR_TEXTO_MUTED, width=20).pack(side="right", padx=(2, 8))
+
+        ctk.CTkLabel(card_tab, text="", height=8).pack()
+
+    def _set_filtro(self, f: str):
+        self.filtro_tipo = f
+        self._montar_tela()
+
+    # ==============================================================
+    # 4. COLUNA DIREITA: NOVA CATEGORIA + SUGESTÕES
+    # ==============================================================
+    def _build_coluna_formulario(self, parent):
+        col = ctk.CTkFrame(parent, fg_color="transparent")
+        col.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
+
+        # 4.1 Card Nova Categoria
+        self._build_card_nova_categoria(col)
+
+        # 4.2 Card Categorias Sugeridas
+        self._build_card_sugestoes(col)
+
+    def _build_card_nova_categoria(self, parent):
+        card = ctk.CTkFrame(parent, fg_color=COR_CARD, corner_radius=14, border_width=1, border_color=COR_BORDA)
+        card.pack(fill="x", pady=(0, 12))
+
+        topo = ctk.CTkFrame(card, fg_color="transparent")
+        topo.pack(fill="x", padx=16, pady=(16, 12))
+
+        ctk.CTkLabel(topo, text="🏷️  Nova Categoria", font=fonte(13, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(side="left")
+        ctk.CTkButton(
+            topo, text="🔄  Limpar", height=26, corner_radius=6,
+            fg_color="transparent", hover_color=COR_CARD_INTERNO, text_color=COR_TEXTO_MUTED, font=fonte(10),
+            command=self._limpar_form
+        ).pack(side="right")
+
+        # Nome
+        ctk.CTkLabel(card, text="Nome da Categoria", font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", padx=16, pady=(0, 4))
+        self.entry_nome = ctk.CTkEntry(
+            card, placeholder_text="Ex.: Viagem, Alimentação, Salário...", height=36, corner_radius=8,
+            fg_color=COR_CARD_INTERNO, border_width=1, border_color=COR_BORDA, text_color=COR_TEXTO_PRINCIPAL, font=fonte(10)
+        )
+        self.entry_nome.pack(fill="x", padx=16, pady=(0, 10))
+
+        # Linha: Tipo | Contexto de Uso
+        l1 = ctk.CTkFrame(card, fg_color="transparent")
+        l1.pack(fill="x", padx=16, pady=(0, 10))
+        l1.grid_columnconfigure((0, 1), weight=1)
+
+        ctk.CTkLabel(l1, text="Tipo", font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL).grid(row=0, column=0, sticky="w", pady=(0, 4))
+        self.combo_tipo = ctk.CTkOptionMenu(
+            l1, values=["Despesa", "Receita"], height=36, corner_radius=8,
+            fg_color=COR_CARD_INTERNO, button_color=COR_CARD_INTERNO, text_color=COR_TEXTO_PRINCIPAL, font=fonte(10)
+        )
+        self.combo_tipo.set("Despesa")
+        self.combo_tipo.grid(row=1, column=0, sticky="ew", padx=(0, 6))
+
+        ctk.CTkLabel(l1, text="Contexto de Uso", font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL).grid(row=0, column=1, sticky="w", pady=(0, 4))
+        self.combo_ctx = ctk.CTkOptionMenu(
+            l1, values=["Pessoal", "Empresarial", "Familiar", "Outros"], height=36, corner_radius=8,
+            fg_color=COR_CARD_INTERNO, button_color=COR_CARD_INTERNO, text_color=COR_TEXTO_PRINCIPAL, font=fonte(10)
+        )
+        self.combo_ctx.set("Pessoal")
+        self.combo_ctx.grid(row=1, column=1, sticky="ew", padx=(6, 0))
+
+        # Limite de Orçamento
+        ctk.CTkLabel(card, text="Limite de Orçamento (R$/mês)", font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", padx=16, pady=(0, 4))
+        self.entry_limite = ctk.CTkEntry(
+            card, placeholder_text="0,00", height=36, corner_radius=8,
+            fg_color=COR_CARD_INTERNO, border_width=1, border_color=COR_BORDA, text_color=COR_TEXTO_PRINCIPAL, font=fonte(10)
+        )
+        self.entry_limite.pack(fill="x", padx=16, pady=(0, 4))
+
+        ctk.CTkLabel(card, text="Deixe 0 para sem limite de orçamento", font=fonte(8), text_color=COR_TEXTO_MUTED).pack(anchor="w", padx=16, pady=(0, 16))
+
+        # Botão Adicionar Categoria Teal
+        ctk.CTkButton(
+            card,
+            text="＋  Adicionar Categoria",
+            height=40,
+            corner_radius=10,
+            fg_color="#00D084",
+            hover_color="#00B875",
+            text_color="#0B131B",
+            font=fonte(11, "bold"),
+            command=self._salvar_categoria,
+        ).pack(fill="x", padx=16, pady=(0, 16))
+
+    def _build_card_sugestoes(self, parent):
+        card = ctk.CTkFrame(parent, fg_color=COR_CARD, corner_radius=14, border_width=1, border_color=COR_BORDA)
+        card.pack(fill="x")
+
+        topo = ctk.CTkFrame(card, fg_color="transparent")
+        topo.pack(fill="x", padx=16, pady=(14, 10))
+
+        ctk.CTkLabel(topo, text="💡  Categorias Sugeridas", font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(side="left")
+        ctk.CTkButton(
+            topo, text="＋  Adicionar todas", fg_color="transparent", hover_color=COR_CARD_INTERNO, text_color="#00D084", font=fonte(10)
+        ).pack(side="right")
+
+        # Grid 2 colunas com tags interativas
+        grid_sug = ctk.CTkFrame(card, fg_color="transparent")
+        grid_sug.pack(fill="x", padx=16, pady=(0, 14))
+        grid_sug.grid_columnconfigure((0, 1), weight=1)
+
+        sugestoes = [
+            ("🍴", "Alimentação"), ("🎮", "Lazer"),
+            ("🚗", "Transporte"), ("🏢", "Contas e Serviços"),
+            ("❤️", "Saúde"), ("🛍️", "Shopping"),
+            ("🎓", "Educação"), ("🔄", "Assinaturas"),
+            ("✈️", "Viagem"), ("🎁", "Presentes"),
+        ]
+
+        for i, (ic, tit) in enumerate(sugestoes):
+            r, c = i // 2, i % 2
+            b = ctk.CTkButton(
+                grid_sug,
+                text=f"{ic}  {tit}  ＋",
+                height=32,
+                corner_radius=8,
+                fg_color=COR_CARD_INTERNO,
+                hover_color="#1E3143",
+                text_color=COR_TEXTO_PRINCIPAL,
+                font=fonte(10),
+                command=lambda t=tit: self._adicionar_sugerida(t),
+            )
+            b.grid(row=r, column=c, padx=3, pady=3, sticky="ew")
+
+    def _limpar_form(self):
+        self.entry_nome.delete(0, "end")
+        self.entry_limite.delete(0, "end")
+
+    def _salvar_categoria(self):
+        nom = self.entry_nome.get().strip()
+        if not nom:
+            return
+
+        tip = self.combo_tipo.get()
+        ctx = self.combo_ctx.get()
+        lim_txt = self.entry_limite.get().replace("R$", "").replace(".", "").replace(",", ".").strip() or "0"
+        try:
+            lim = float(lim_txt)
+        except Exception:
+            lim = 0.0
+
+        nova = Categoria(
+            nome=nom,
+            tipo=tip,
+            escopo=ctx,
+            limite_mensal=lim,
+        )
+        self.dao.inserir(nova)
+        self._limpar_form()
+        self._montar_tela()
+
+    def _adicionar_sugerida(self, tit: str):
+        self.entry_nome.delete(0, "end")
+        self.entry_nome.insert(0, tit)

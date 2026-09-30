@@ -12,6 +12,8 @@ class Usuario:
         senha_hash="",
         tipo_perfil="PF",
         data_criacao=None,
+        foto_perfil=None,
+        renda_mensal=0.0,
     ):
         self._id = id
         self._nome = nome
@@ -19,6 +21,8 @@ class Usuario:
         self._senha_hash = senha_hash
         self._tipo_perfil = tipo_perfil
         self._data_criacao = data_criacao or date.today().strftime("%Y-%m-%d")
+        self._foto_perfil = foto_perfil
+        self._renda_mensal = float(renda_mensal or 0.0)
 
     @property
     def id(self):
@@ -68,6 +72,22 @@ class Usuario:
     def data_criacao(self, nova_data_criacao):
         self._data_criacao = nova_data_criacao
 
+    @property
+    def foto_perfil(self):
+        return self._foto_perfil
+
+    @foto_perfil.setter
+    def foto_perfil(self, nova_foto):
+        self._foto_perfil = nova_foto
+
+    @property
+    def renda_mensal(self):
+        return self._renda_mensal
+
+    @renda_mensal.setter
+    def renda_mensal(self, nova_renda):
+        self._renda_mensal = float(nova_renda or 0.0)
+
     def eh_pj(self) -> bool:
         return self._tipo_perfil == "PJ"
 
@@ -78,6 +98,8 @@ class Usuario:
             "email": self._email,
             "tipo_perfil": self._tipo_perfil,
             "data_criacao": str(self._data_criacao),
+            "foto_perfil": self._foto_perfil,
+            "renda_mensal": self._renda_mensal,
         }
 
     def __repr__(self):

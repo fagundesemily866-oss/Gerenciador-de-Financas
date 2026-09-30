@@ -10,6 +10,9 @@ class Meta:
         valor_atual=0.0,
         prazo=None,
         data_limite=None,
+        concluida=0,
+        data_conclusao=None,
+        celebracao_exibida=0,
     ):
         self._id = id
         self._usuario_id = usuario_id
@@ -18,6 +21,9 @@ class Meta:
         self._valor_atual = float(valor_atual) if valor_atual else 0.0
         self._prazo = prazo
         self._data_limite = data_limite
+        self._concluida = int(concluida or 0)
+        self._data_conclusao = data_conclusao
+        self._celebracao_exibida = int(celebracao_exibida or 0)
 
     @property
     def id(self):
@@ -75,6 +81,30 @@ class Meta:
     def data_limite(self, nova_data_limite):
         self._data_limite = nova_data_limite
 
+    @property
+    def concluida(self):
+        return self._concluida
+
+    @concluida.setter
+    def concluida(self, status):
+        self._concluida = int(status)
+
+    @property
+    def data_conclusao(self):
+        return self._data_conclusao
+
+    @data_conclusao.setter
+    def data_conclusao(self, nova_data):
+        self._data_conclusao = nova_data
+
+    @property
+    def celebracao_exibida(self):
+        return self._celebracao_exibida
+
+    @celebracao_exibida.setter
+    def celebracao_exibida(self, status):
+        self._celebracao_exibida = int(status)
+
     def guardar_valor(self, quantia):
         if quantia <= 0:
             return "A quantia a ser guardada deve ser maior que zero."
@@ -87,7 +117,7 @@ class Meta:
             return 0.0
 
         progresso = (self._valor_atual / self._valor_alvo) * 100
-        return min(round(progresso, 2), 100.0)
+        return round(progresso, 2)
 
     def to_dict(self) -> dict:
         return {
@@ -99,6 +129,9 @@ class Meta:
             "prazo": self._prazo,
             "data_limite": self._data_limite,
             "progresso": self.calcular_progresso(),
+            "concluida": self._concluida,
+            "data_conclusao": self._data_conclusao,
+            "celebracao_exibida": self._celebracao_exibida,
         }
 
     def __repr__(self):

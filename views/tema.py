@@ -6,93 +6,109 @@ Paleta inspirada na identidade visual do app (carteira verde com gráfico).
 Tons suaves de verde e teal que transmitem calma e confiança ao usuário.
 """
 
+import customtkinter as ctk
+
 # ──────────────────────────────────────────────────────────────
-# PALETA DE CORES — "Serene Green"
+# PALETA DE CORES — "Modern Fintech Dark & Clean Light"
 # ──────────────────────────────────────────────────────────────
 
 # Fundos e superfícies
-COR_FUNDO_PRINCIPAL = "#0B1D1F"       # Verde-escuro profundo (base)
-COR_SIDEBAR = "#0F2629"              # Sidebar levemente mais clara
-COR_CARD = "#112E32"                 # Cards e painéis
-COR_CARD_INTERNO = "#0A2024"         # Campos de input, subcards
-COR_BORDA = "#1A4A4A"               # Bordas sutis
+COR_FUNDO_PRINCIPAL = ("#F1F5F9", "#0B131B")       # Fundo base da janela
+COR_SIDEBAR = ("#E2E8F0", "#091017")               # Sidebar
+COR_CARD = ("#FFFFFF", "#101C26")                  # Cards e painéis principais
+COR_CARD_INTERNO = ("#F8FAFC", "#152330")          # Inputs, tabelas e subcards
+COR_CARD_HOVER = ("#F1F5F9", "#192A3A")            # Efeito hover para cards
+COR_BORDA = ("#CBD5E1", "#1E3143")                 # Bordas sutis e divisores
 
 # Texto
-COR_TEXTO_PRINCIPAL = "#E0F2F1"      # Branco esverdeado suave
-COR_TEXTO_SECUNDARIO = "#80CBC4"     # Teal claro
-COR_TEXTO_TERCIARIO = "#4A8A85"      # Teal apagado (hints)
-COR_TEXTO_MUTED = "#3D6B67"          # Texto muito sutil
+COR_TEXTO_PRINCIPAL = ("#0F172A", "#FFFFFF")       # Contraste alto para títulos e valores
+COR_TEXTO_SECUNDARIO = ("#334155", "#94A3B8")      # Rótulos e subtítulos
+COR_TEXTO_TERCIARIO = ("#64748B", "#64748B")       # Textos auxiliares e hints
+COR_TEXTO_MUTED = ("#94A3B8", "#475569")           # Metadados e textos discretos
 
 # Acentos
-COR_ACENTO_PRIMARIO = "#4DB6AC"      # Teal médio — botões, links
-COR_ACENTO_HOVER = "#3D9E94"         # Hover do acento primário
-COR_SUCESSO = "#66BB6A"             # Verde suave (receitas, sucesso)
-COR_SUCESSO_HOVER = "#57A75C"       # Hover do verde
-COR_ALERTA = "#FFAB91"              # Salmão suave (alertas, despesas)
-COR_ALERTA_HOVER = "#E8967D"        # Hover do salmão
-COR_AVISO = "#FFE082"               # Âmbar suave (avisos, "faltam")
-COR_INFO = "#81D4FA"                # Azul-claro (informativo)
+COR_ACENTO_PRIMARIO = ("#059669", "#00D084")       # Verde-Esmeralda / Teal brilhante das fotos
+COR_ACENTO_HOVER = ("#047857", "#00B875")          # Hover do destaque
+COR_ACENTO_ROXO = ("#7C3AED", "#8B5CF6")           # Roxo (IA, tags, destaques especiais)
+COR_ACENTO_ROXO_HOVER = ("#6D28D9", "#7C3AED")
+COR_SUCESSO = ("#16A34A", "#00D084")              # Verde (receitas, metas concluídas)
+COR_SUCESSO_HOVER = ("#15803D", "#00B875")        # Hover do sucesso
+COR_ALERTA = ("#DC2626", "#F43F5E")               # Vermelho/Coral (despesas, alertas)
+COR_ALERTA_HOVER = ("#B91C1C", "#E11D48")         # Hover do alerta
+COR_AVISO = ("#D97706", "#F59E0B")                # Âmbar/Laranja (atenção)
+COR_INFO = ("#0284C7", "#38BDF8")                 # Azul informativo
 
 # Elementos interativos (sidebar)
 COR_BOTAO_NORMAL = "transparent"
-COR_BOTAO_ATIVO = "#1A3F3F"          # Botão selecionado no menu
-COR_BOTAO_HOVER = "#163636"          # Hover genérico
-COR_BOTAO_SECUNDARIO = "#1A3F3F"     # Botões secundários
-COR_BOTAO_SECUNDARIO_HOVER = "#245050"
+COR_BOTAO_ATIVO = ("#CCFBF1", "#102F33")           # Botão selecionado no menu (fundo teal escuro)
+COR_BOTAO_ATIVO_TEXTO = ("#0F766E", "#00D084")     # Texto do botão selecionado
+COR_BOTAO_HOVER = ("#E2E8F0", "#14222E")           # Hover na barra
+COR_BOTAO_SECUNDARIO = ("#E2E8F0", "#152330")      # Botões secundários
+COR_BOTAO_SECUNDARIO_HOVER = ("#CBD5E1", "#1E3143")
 
 # Avatar / Card do Usuário
-COR_AVATAR_BG = "#1A3F3F"
-COR_AVATAR_TEXTO = "#4DB6AC"
-COR_CARD_USER_BG = "#0D2225"
-COR_CARD_USER_BORDA = "#1A4A4A"
+COR_AVATAR_BG = ("#D1FAE5", "#0F3836")
+COR_AVATAR_TEXTO = ("#047857", "#00D084")
+COR_CARD_USER_BG = ("#F8FAFC", "#101D27")
+COR_CARD_USER_BORDA = ("#E2E8F0", "#1E3143")
 
 # Receitas e Despesas
-COR_RECEITA = "#66BB6A"
-COR_RECEITA_BG = "#1A3D2A"
-COR_DESPESA = "#FFAB91"
-COR_DESPESA_BG = "#3D2520"
+COR_RECEITA = ("#16A34A", "#00D084")
+COR_RECEITA_BG = ("#DCFCE7", "#102E24")
+COR_DESPESA = ("#DC2626", "#F43F5E")
+COR_DESPESA_BG = ("#FEE2E2", "#2E151B")
 
 # Barra de progresso
-COR_PROGRESSO = "#26A69A"
-COR_PROGRESSO_BG = "#1A3F3F"
+COR_PROGRESSO = ("#059669", "#00D084")
+COR_PROGRESSO_BG = ("#E2E8F0", "#1C2F3F")
 
 # Logout / Fechar
-COR_LOGOUT_BG = "#1A3F3F"
-COR_LOGOUT_HOVER = "#245050"
-COR_LOGOUT_TEXTO = "#E0F2F1"
-COR_FECHAR_BG = "#3D2520"
-COR_FECHAR_HOVER = "#4D3028"
-COR_FECHAR_TEXTO = "#FFAB91"
+COR_LOGOUT_BG = ("#F1F5F9", "#152330")
+COR_LOGOUT_HOVER = ("#E2E8F0", "#1E3143")
+COR_LOGOUT_TEXTO = ("#0F172A", "#CBD5E1")
+COR_FECHAR_BG = ("#FEE2E2", "#2A141A")
+COR_FECHAR_HOVER = ("#FECACA", "#3E1A23")
+COR_FECHAR_TEXTO = ("#DC2626", "#F43F5E")
 
 # Botão excluir
-COR_EXCLUIR_HOVER = "#3D2520"
-COR_EXCLUIR_TEXTO = "#FFAB91"
+COR_EXCLUIR_HOVER = ("#FEE2E2", "#2A141A")
+COR_EXCLUIR_TEXTO = ("#DC2626", "#F43F5E")
 
 # Tab / Segmented
-COR_TAB_BG = "#0A2024"
-COR_TAB_SELECIONADA = "#4DB6AC"
-COR_TAB_SELECIONADA_HOVER = "#3D9E94"
-COR_TAB_TEXTO = "#0B1D1F"
+COR_TAB_BG = ("#E2E8F0", "#101D27")
+COR_TAB_SELECIONADA = ("#059669", "#00D084")
+COR_TAB_SELECIONADA_HOVER = ("#047857", "#00B875")
+COR_TAB_TEXTO = ("#FFFFFF", "#0B131B")
+
+
+def obter_cor(cor) -> str:
+    """
+    Retorna a cor string apropriada para widgets nativos do Tkinter (como tk.Canvas)
+    que não aceitam tuplas (light, dark) do CustomTkinter.
+    """
+    if isinstance(cor, (tuple, list)):
+        modo = ctk.get_appearance_mode().lower()
+        return cor[0] if modo == "light" else cor[1]
+    return cor
 
 # ──────────────────────────────────────────────────────────────
 # FONTES
 # ──────────────────────────────────────────────────────────────
-# Fontes elegantes do sistema. No Windows, "Segoe UI" é limpa e moderna.
-# No macOS, "SF Pro Display" ou "Helvetica Neue".
-# Fallback para "Arial" em qualquer SO.
-
-FONTE_FAMILIA = "Montserrat"
-
-import customtkinter as ctk
+FONTE_FAMILIA = "Segoe UI"
 
 
-def fonte(tamanho: int = 13, peso: str = "normal") -> ctk.CTkFont:
+def fonte(tamanho: int = 13, peso: str = "normal", slant: str = "roman") -> ctk.CTkFont:
     """Retorna uma CTkFont com a fonte padrão do tema."""
-    return ctk.CTkFont(family=FONTE_FAMILIA, size=tamanho, weight=peso)
+    if peso == "italic":
+        peso = "normal"
+        slant = "italic"
+    elif peso not in ("normal", "bold"):
+        peso = "normal"
+    return ctk.CTkFont(family=FONTE_FAMILIA, size=tamanho, weight=peso, slant=slant)
 
 
 def fonte_titulo() -> ctk.CTkFont:
-    return fonte(24, "bold")
+    return fonte(22, "bold")
 
 
 def fonte_subtitulo() -> ctk.CTkFont:

@@ -12,10 +12,10 @@ from views.relatorio_view import RelatorioView
 from views.assistente_ia_view import AssistenteIAView
 from views.notificacao_toast import GerenciadorNotificacoes
 from views.tema import (
-    COR_CARD, COR_CARD_INTERNO, COR_CARD_USER_BG, COR_CARD_USER_BORDA,
+    COR_CARD, COR_CARD_INTERNO, COR_CARD_USER_BG, COR_CARD_USER_BORDA, COR_CARD_HOVER,
     COR_BORDA, COR_SIDEBAR, COR_TEXTO_PRINCIPAL, COR_TEXTO_SECUNDARIO,
-    COR_TEXTO_TERCIARIO, COR_ACENTO_PRIMARIO, COR_AVATAR_BG, COR_AVATAR_TEXTO,
-    COR_BOTAO_NORMAL, COR_BOTAO_ATIVO, COR_BOTAO_HOVER,
+    COR_TEXTO_TERCIARIO, COR_TEXTO_MUTED, COR_ACENTO_PRIMARIO, COR_AVATAR_BG, COR_AVATAR_TEXTO,
+    COR_BOTAO_NORMAL, COR_BOTAO_ATIVO, COR_BOTAO_ATIVO_TEXTO, COR_BOTAO_HOVER,
     COR_BOTAO_SECUNDARIO, COR_BOTAO_SECUNDARIO_HOVER,
     COR_LOGOUT_BG, COR_LOGOUT_HOVER, COR_LOGOUT_TEXTO,
     COR_FECHAR_BG, COR_FECHAR_HOVER, COR_FECHAR_TEXTO,
@@ -175,181 +175,217 @@ class MenuView(ctk.CTkFrame):
     # SIDEBAR
     # ==============================================================
 
-    def _build_sidebar(self):
+    # ==============================================================
+    # SIDEBAR
+    # ==============================================================
 
+    def _build_sidebar(self):
         self.sidebar = ctk.CTkFrame(
             self,
             width=240,
             corner_radius=0,
             fg_color=COR_SIDEBAR,
         )
-
         self.sidebar.grid(
             row=0,
             column=0,
             sticky="nsew"
         )
-
         self.sidebar.grid_propagate(False)
 
-        # Espaço para empurrar opções para baixo
-        self.sidebar.grid_rowconfigure(
-            len(self.itens_menu) + 2,
-            weight=1
-        )
+        # 1. LOGO NO TOPO
+        logo_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        logo_frame.pack(fill="x", padx=16, pady=(18, 12))
 
-        # Card do Usuário Logado no topo da Sidebar
-        card_user = ctk.CTkFrame(
+        # Ícone estilizado do Logo
+        logo_icon_box = ctk.CTkFrame(
+            logo_frame,
+            width=36,
+            height=36,
+            corner_radius=10,
+            fg_color=("#CCFBF1", "#0D2E2B"),
+            border_width=1,
+            border_color=("#99F6E4", "#134E48"),
+        )
+        logo_icon_box.pack(side="left", padx=(0, 10))
+        logo_icon_box.pack_propagate(False)
+
+        ctk.CTkLabel(
+            logo_icon_box,
+            text="📊",
+            font=fonte(18),
+        ).place(relx=0.5, rely=0.5, anchor="center")
+
+        logo_text_frame = ctk.CTkFrame(logo_frame, fg_color="transparent")
+        logo_text_frame.pack(side="left", fill="both", expand=True)
+
+        ctk.CTkLabel(
+            logo_text_frame,
+            text="Gerenciador de",
+            font=fonte(12, "bold"),
+            text_color=COR_TEXTO_PRINCIPAL,
+            anchor="w",
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            logo_text_frame,
+            text="Finanças Pessoais",
+            font=fonte(11),
+            text_color=COR_TEXTO_SECUNDARIO,
+            anchor="w",
+        ).pack(anchor="w")
+
+        # 2. CARD DO USUÁRIO LOGADO
+        self.card_user = ctk.CTkFrame(
             self.sidebar,
             fg_color=COR_CARD_USER_BG,
-            corner_radius=10,
+            corner_radius=12,
             border_width=1,
             border_color=COR_CARD_USER_BORDA,
+            cursor="hand2",
         )
-        card_user.grid(row=0, column=0, padx=12, pady=(15, 12), sticky="ew")
-        card_user.grid_columnconfigure(1, weight=1)
+        self.card_user.pack(fill="x", padx=14, pady=(0, 14))
+        self.card_user.grid_columnconfigure(1, weight=1)
 
-        # Iniciais
-        nome_completo = self.usuario_logado.get("nome", "Usuário")
+        nome_completo = self.usuario_logado.get("nome", "Usuário Demo")
         partes_nome = nome_completo.split()
         iniciais = (partes_nome[0][0] + (partes_nome[-1][0] if len(partes_nome) > 1 else "")).upper()
 
-        avatar = ctk.CTkFrame(card_user, width=38, height=38, corner_radius=19, fg_color=COR_AVATAR_BG)
-        avatar.grid(row=0, column=0, rowspan=2, padx=10, pady=10)
+        avatar = ctk.CTkFrame(self.card_user, width=34, height=34, corner_radius=17, fg_color=COR_AVATAR_BG)
+        avatar.grid(row=0, column=0, rowspan=2, padx=(10, 8), pady=8)
         avatar.grid_propagate(False)
 
-        # Label do avatar: mostra as iniciais por padrão, e passa a mostrar a
-        # foto do usuário assim que ela for atualizada (ver atualizar_avatar_sidebar).
         self.lbl_avatar = ctk.CTkLabel(
             avatar,
             text=iniciais,
-            font=fonte(13, "bold"),
+            font=fonte(12, "bold"),
             text_color=COR_AVATAR_TEXTO,
         )
         self.lbl_avatar.pack(expand=True)
 
-        ctk.CTkLabel(
-            card_user,
-            text=nome_completo[:16],
-            font=fonte(12, "bold"),
+        lbl_nome = ctk.CTkLabel(
+            self.card_user,
+            text=nome_completo[:14],
+            font=fonte(11, "bold"),
             text_color=COR_TEXTO_PRINCIPAL,
             anchor="w",
-        ).grid(row=0, column=1, sticky="w", pady=(8, 0))
+        )
+        lbl_nome.grid(row=0, column=1, sticky="w", pady=(8, 0))
 
         tipo_badge = f"Perfil {self.usuario_logado.get('tipo_perfil', 'PF')}"
-        ctk.CTkLabel(
-            card_user,
+        lbl_tipo = ctk.CTkLabel(
+            self.card_user,
             text=tipo_badge,
             font=fonte(10),
-            text_color=COR_TEXTO_SECUNDARIO,
+            text_color=COR_TEXTO_MUTED,
             anchor="w",
-        ).grid(row=1, column=1, sticky="w", pady=(0, 8))
+        )
+        lbl_tipo.grid(row=1, column=1, sticky="w", pady=(0, 8))
+
+        lbl_seta = ctk.CTkLabel(
+            self.card_user,
+            text="›",
+            font=fonte(16, "bold"),
+            text_color=COR_TEXTO_MUTED,
+        )
+        lbl_seta.grid(row=0, column=2, rowspan=2, padx=(4, 10))
+
+        for widget in [self.card_user, avatar, self.lbl_avatar, lbl_nome, lbl_tipo, lbl_seta]:
+            widget.bind("<Button-1>", lambda e: self.selecionar("usuario"))
+
+        # 3. CONTAINER COM OS BOTÕES DO MENU (ROLÁVEL SE NECESSÁRIO EM TELAS PEQUENAS)
+        nav_container = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        nav_container.pack(fill="both", expand=True, padx=12, pady=0)
 
         # Botões do Menu
-        for i, (chave, texto, _) in enumerate(
-            self.itens_menu,
-            start=1
-        ):
-
+        for chave, texto, _ in self.itens_menu:
             botao = ctk.CTkButton(
-                self.sidebar,
+                nav_container,
                 text=texto,
                 anchor="w",
-                height=40,
+                height=38,
                 corner_radius=8,
-                fg_color=COR_BOTAO_NORMAL,
-                text_color=(COR_TEXTO_PRINCIPAL, COR_TEXTO_PRINCIPAL),
-                hover_color=(COR_BOTAO_HOVER, COR_BOTAO_HOVER),
-                font=fonte(13),
-                command=lambda c=chave: self.selecionar(c)
+                fg_color="transparent",
+                text_color=COR_TEXTO_SECUNDARIO,
+                hover_color=COR_BOTAO_HOVER,
+                font=fonte(12, "normal"),
+                command=lambda c=chave: self.selecionar(c),
             )
-
-            botao.grid(
-                row=i,
-                column=0,
-                padx=12,
-                pady=3,
-                sticky="ew"
-            )
-
+            botao.pack(fill="x", pady=2)
             self.botoes[chave] = botao
 
-        # Tema
+        # 4. RODAPÉ DA SIDEBAR
+        rodape_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        rodape_frame.pack(fill="x", padx=14, pady=(10, 14), side="bottom")
+
+        # Seletor de Tema
+        tema_box = ctk.CTkFrame(rodape_frame, fg_color=COR_CARD_USER_BG, corner_radius=8, border_width=1, border_color=COR_CARD_USER_BORDA)
+        tema_box.pack(fill="x", pady=(0, 8))
+
+        ctk.CTkLabel(
+            tema_box,
+            text="🌙  Tema",
+            font=fonte(11),
+            text_color=COR_TEXTO_SECUNDARIO,
+        ).pack(side="left", padx=10, pady=4)
+
         self.opcao_tema = ctk.CTkOptionMenu(
-            self.sidebar,
-            values=[
-                "Dark",
-                "Light",
-                "System"
-            ],
-            command=ctk.set_appearance_mode,
-            width=210,
+            tema_box,
+            values=["Dark", "Light"],
+            command=self._alterar_tema,
+            width=90,
+            height=26,
             fg_color=COR_BOTAO_SECUNDARIO,
             button_color=COR_ACENTO_PRIMARIO,
-            font=fonte(12),
+            font=fonte(11),
         )
-
         self.opcao_tema.set("Dark")
+        self.opcao_tema.pack(side="right", padx=6, pady=4)
 
-        self.opcao_tema.grid(
-            row=len(self.itens_menu) + 3,
-            column=0,
-            padx=15,
-            pady=(10, 6)
-        )
-
-        # Botão Desconectar / Logout
+        # Botão Sair da Conta / Logout
         if self.on_logout:
             btn_logout = ctk.CTkButton(
-                self.sidebar,
-                text="🚪 Desconectar",
-                width=210,
+                rodape_frame,
+                text="🚪  Sair da Conta",
                 height=32,
+                corner_radius=8,
                 fg_color=COR_LOGOUT_BG,
                 hover_color=COR_LOGOUT_HOVER,
                 text_color=COR_LOGOUT_TEXTO,
-                font=fonte(12),
+                font=fonte(11),
                 command=self.on_logout,
             )
-            btn_logout.grid(
-                row=len(self.itens_menu) + 4,
-                column=0,
-                padx=15,
-                pady=(0, 6)
-            )
+            btn_logout.pack(fill="x", pady=(0, 6))
 
-        # Botão sair do aplicativo
+        # Botão Sair do Aplicativo
         ctk.CTkButton(
-            self.sidebar,
-            text="Fechar App",
-            width=210,
+            rodape_frame,
+            text="⏻  Fechar App",
             height=32,
+            corner_radius=8,
             fg_color=COR_FECHAR_BG,
             hover_color=COR_FECHAR_HOVER,
             text_color=COR_FECHAR_TEXTO,
-            font=fonte(12),
-            command=self.parent.destroy
-        ).grid(
-            row=len(self.itens_menu) + 5,
-            column=0,
-            padx=15,
-            pady=(0, 15)
-        )
+            font=fonte(11),
+            command=self.parent.destroy,
+        ).pack(fill="x")
+
+    def _alterar_tema(self, modo: str):
+        ctk.set_appearance_mode(modo)
 
     # ==============================================================
     # AVATAR DA SIDEBAR
     # ==============================================================
 
     def atualizar_avatar_sidebar(self, imagem_pil: Image.Image):
-        """Recebe uma imagem PIL (já aberta) vinda do UsuarioView e atualiza
-        o avatar circular exibido no topo da sidebar."""
+        """Recebe uma imagem PIL e atualiza o avatar circular na sidebar."""
         imagem_mini = imagem_pil.copy()
-        imagem_mini.thumbnail((38, 38))
+        imagem_mini.thumbnail((34, 34))
 
         self.avatar_image = ctk.CTkImage(
             light_image=imagem_mini,
             dark_image=imagem_mini,
-            size=(38, 38),
+            size=(34, 34),
         )
 
         self.lbl_avatar.configure(image=self.avatar_image, text="")
@@ -359,96 +395,32 @@ class MenuView(ctk.CTkFrame):
     # ==============================================================
 
     def _build_conteudo(self):
-
         self.area_conteudo = ctk.CTkFrame(
             self,
             fg_color="transparent"
         )
-
         self.area_conteudo.grid(
             row=0,
             column=1,
             sticky="nsew",
-            padx=20,
-            pady=20
+            padx=14,
+            pady=14
         )
+        self.area_conteudo.grid_columnconfigure(0, weight=1)
+        self.area_conteudo.grid_rowconfigure(0, weight=1)
 
-        self.area_conteudo.grid_columnconfigure(
-            0,
-            weight=1
-        )
-
-        self.area_conteudo.grid_rowconfigure(
-            1,
-            weight=1
-        )
-
-        # Cabeçalho da tela (Título à esquerda + Breve explicação no canto direito)
-        self.header_tela = ctk.CTkFrame(
-            self.area_conteudo,
-            fg_color="transparent"
-        )
-        self.header_tela.grid(
-            row=0,
-            column=0,
-            sticky="ew",
-            pady=(0, 15)
-        )
-        self.header_tela.grid_columnconfigure(0, weight=1)
-
-        self.titulo_tela = ctk.CTkLabel(
-            self.header_tela,
-            text="",
-            font=fonte_titulo(),
-            text_color=COR_TEXTO_PRINCIPAL,
-            anchor="w"
-        )
-        self.titulo_tela.grid(
-            row=0,
-            column=0,
-            sticky="w"
-        )
-
-        # Card informativo no canto direito
-        self.card_info_tela = ctk.CTkFrame(
-            self.header_tela,
-            fg_color=COR_CARD,
-            border_width=1,
-            border_color=COR_BORDA,
-            corner_radius=8,
-        )
-        self.card_info_tela.grid(
-            row=0,
-            column=1,
-            sticky="e",
-            padx=(10, 0)
-        )
-
-        self.lbl_info_tela = ctk.CTkLabel(
-            self.card_info_tela,
-            text="",
-            font=fonte(11),
-            text_color=COR_TEXTO_SECUNDARIO,
-            padx=12,
-            pady=5,
-        )
-        self.lbl_info_tela.pack()
-
-        # Container das telas
-        #
-        # IMPORTANTE:
-        # Não usamos CTkScrollableFrame aqui.
-        # Cada View passa a ocupar todo o espaço disponível.
+        # Container das telas onde as Views ocupam todo o espaço
         self.container = ctk.CTkFrame(
             self.area_conteudo,
             fg_color="transparent"
         )
-
         self.container.grid(
-            row=1,
+            row=0,
             column=0,
             sticky="nsew"
         )
+        self.container.grid_columnconfigure(0, weight=1)
+        self.container.grid_rowconfigure(0, weight=1)
 
         self.container.grid_columnconfigure(
             0,
@@ -488,20 +460,17 @@ class MenuView(ctk.CTkFrame):
         # ----------------------------------------------------------
 
         for c, botao in self.botoes.items():
-
             if c == chave:
-
                 botao.configure(
-                    fg_color=(
-                        COR_BOTAO_ATIVO,
-                        COR_BOTAO_ATIVO,
-                    )
+                    fg_color=COR_BOTAO_ATIVO,
+                    text_color=COR_BOTAO_ATIVO_TEXTO,
+                    font=fonte(12, "bold"),
                 )
-
             else:
-
                 botao.configure(
-                    fg_color="transparent"
+                    fg_color="transparent",
+                    text_color=COR_TEXTO_SECUNDARIO,
+                    font=fonte(12, "normal"),
                 )
 
         # ----------------------------------------------------------
@@ -509,7 +478,6 @@ class MenuView(ctk.CTkFrame):
         # ----------------------------------------------------------
 
         if self.view_atual is not None:
-
             self.view_atual.grid_forget()
 
         # ----------------------------------------------------------
@@ -517,19 +485,13 @@ class MenuView(ctk.CTkFrame):
         # ----------------------------------------------------------
 
         if chave not in self.views:
-
-            titulo_limpo = texto.split(
-                "  ",
-                1
-            )[-1]
+            titulo_limpo = texto.split("  ", 1)[-1]
 
             if classe_view is None:
-
                 nova_view = EmConstrucaoView(
                     self.container,
                     titulo=titulo_limpo
                 )
-
             else:
                 if classe_view == UsuarioView:
                     nova_view = classe_view(
@@ -552,11 +514,7 @@ class MenuView(ctk.CTkFrame):
         # Atualizar dados
         # ----------------------------------------------------------
 
-        if hasattr(
-            self.view_atual,
-            "atualizar_dados"
-        ):
-
+        if hasattr(self.view_atual, "atualizar_dados"):
             self.view_atual.atualizar_dados()
 
         # ----------------------------------------------------------
@@ -567,25 +525,6 @@ class MenuView(ctk.CTkFrame):
             row=0,
             column=0,
             sticky="nsew"
-        )
-
-        # ----------------------------------------------------------
-        # Atualizar título
-        # ----------------------------------------------------------
-
-        titulo_limpo = texto.split(
-            "  ",
-            1
-        )[-1]
-
-        self.titulo_tela.configure(
-            text=titulo_limpo
-        )
-
-        # Atualizar explicação contextual no canto superior
-        explicacao = self.explicacoes_telas.get(chave, "")
-        self.lbl_info_tela.configure(
-            text=explicacao
         )
 
 
