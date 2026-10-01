@@ -248,14 +248,15 @@ class CategoriaView(ctk.CTkFrame):
         reais = self.dao.listar_todas()
         if reais:
             reais_c = []
-            for c in reais:
-                eh_rec = (getattr(c, "tipo", "") == "Receita")
+            for cat in reais:
+                eh_rec = (getattr(cat, "tipo", "") == "Receita")
                 bg_i = "#0D2E2B" if eh_rec else "#2E151B"
                 cor_b = "#00D084" if eh_rec else "#F43F5E"
-                lim = getattr(c, "limite_mensal", 0) or 0
+                lim = getattr(cat, "limite_mensal", 0) or 0
+                cid = getattr(cat, "id", None)
                 reais_c.append((
-                    "🏷️", bg_i, getattr(c, "nome", "Cat"), getattr(c, "tipo", "Despesa"),
-                    getattr(c, "escopo", "Pessoal"), f"R$ {lim:,.2f}", 0.5, "50%", cor_b
+                    "🏷️", bg_i, getattr(cat, "nome", "Cat"), getattr(cat, "tipo", "Despesa"),
+                    getattr(cat, "escopo", "Pessoal"), f"R$ {lim:,.2f}", 0.5, "50%", cor_b, cid
                 ))
             if reais_c:
                 categorias_demo = reais_c
@@ -264,7 +265,14 @@ class CategoriaView(ctk.CTkFrame):
             tipo_alvo = "Despesa" if self.filtro_tipo == "Despesas" else "Receita"
             categorias_demo = [c for c in categorias_demo if c[3] == tipo_alvo]
 
-        for ic, bg_ic, nom, tip, ctx, lim, prog_p, prog_txt, cor_p in categorias_demo:
+        categorias_fmt = []
+        for item in categorias_demo:
+            if len(item) == 9:
+                categorias_fmt.append((*item, None))
+            else:
+                categorias_fmt.append(item)
+
+        for ic, bg_ic, nom, tip, ctx, lim, prog_p, prog_txt, cor_p, cid in categorias_fmt:
             row = ctk.CTkFrame(card_tab, fg_color=COR_CARD_INTERNO, corner_radius=8, height=44)
             row.pack(fill="x", padx=14, pady=2)
             row.pack_propagate(False)
@@ -301,10 +309,32 @@ class CategoriaView(ctk.CTkFrame):
 
             ctk.CTkLabel(p_box, text=prog_txt, font=fonte(9, "bold"), text_color=cor_p, width=35, anchor="e").pack(side="left")
 
-            # Ações ⋮
-            ctk.CTkLabel(row, text="⋮", font=fonte(14, "bold"), text_color=COR_TEXTO_MUTED, width=20).pack(side="right", padx=(2, 8))
+            # Botão Apagar Categoria
+            ctk.CTkButton(
+                row,
+                text="🗑️",
+                width=26,
+                height=26,
+                corner_radius=6,
+                fg_color="transparent",
+                hover_color="#3E1A23",
+                text_color="#F43F5E",
+                font=fonte(10),
+                command=lambda id_=cid, n=nom: self._apagar_categoria(id_, n),
+            ).pack(side="right", padx=(2, 8))
 
         ctk.CTkLabel(card_tab, text="", height=8).pack()
+
+
+    def _apagar_categoria(self, categoria_id: Optional[int], nome: str):
+        from tkinter import messagebox
+        if messagebox.askyesno("Confirmar Exclusão", f"Deseja realmente apagar a categoria '{nome}'?"):
+            if categoria_id is not None:
+                try:
+                    self.dao.excluir(categoria_id)
+                except Exception as exc:
+                    print(f"Erro ao excluir categoria: {exc}")
+            self._montar_tela()
 
     def _set_filtro(self, f: str):
         self.filtro_tipo = f

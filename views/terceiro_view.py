@@ -269,9 +269,10 @@ class TerceiroView(ctk.CTkFrame):
                 rel = getattr(t, "relacao", "Fornecedor")
                 cor_v = "#A855F7" if rel == "Fornecedor" else ("#00D084" if rel == "Cliente" else "#F59E0B")
                 bg_v = "#1C142E" if rel == "Fornecedor" else ("#0D2E2B" if rel == "Cliente" else "#291E10")
+                tid = getattr(t, "id", None)
                 reais_c.append((
                     "👤", "#182A3A", getattr(t, "nome", "Contato"), "Contato Cadastrado",
-                    rel, cor_v, bg_v, "(31) 0000-0000", "contato@email.com", "● Ativo", "#00D084"
+                    rel, cor_v, bg_v, "(31) 0000-0000", "contato@email.com", "● Ativo", "#00D084", tid
                 ))
             if reais_c:
                 contatos = reais_c
@@ -280,7 +281,15 @@ class TerceiroView(ctk.CTkFrame):
         if self.filtro_tipo != "Todos":
             contatos = [c for c in contatos if c[4] == self.filtro_tipo]
 
-        for av_txt, bg_av, nom, sub, tipo_b, cor_t, bg_t, tel, em, ult_atv, cor_atv in contatos:
+        # Garante que contatos tenham id
+        contatos_formatados = []
+        for item in contatos:
+            if len(item) == 11:
+                contatos_formatados.append((*item, None))
+            else:
+                contatos_formatados.append(item)
+
+        for av_txt, bg_av, nom, sub, tipo_b, cor_t, bg_t, tel, em, ult_atv, cor_atv, tid in contatos_formatados:
             row = ctk.CTkFrame(card_tab, fg_color=COR_CARD_INTERNO, corner_radius=8, height=48)
             row.pack(fill="x", padx=14, pady=2)
             row.pack_propagate(False)
@@ -312,9 +321,19 @@ class TerceiroView(ctk.CTkFrame):
             # Última atividade
             ctk.CTkLabel(row, text=ult_atv, font=fonte(9), text_color=cor_atv, width=90, anchor="w").pack(side="left")
 
-            # Botões de Ação
-            ctk.CTkButton(row, text="···", width=26, height=26, corner_radius=6, fg_color="transparent", hover_color="#1E3143", text_color=COR_TEXTO_MUTED).pack(side="right", padx=(2, 6))
-            ctk.CTkButton(row, text="✏", width=26, height=26, corner_radius=6, fg_color="transparent", hover_color="#1E3143", text_color=COR_TEXTO_MUTED).pack(side="right")
+            # Botões de Ação (Editar e Apagar)
+            ctk.CTkButton(
+                row,
+                text="🗑️",
+                width=26,
+                height=26,
+                corner_radius=6,
+                fg_color="transparent",
+                hover_color="#3E1A23",
+                text_color="#F43F5E",
+                font=fonte(10),
+                command=lambda id_=tid, n=nom: self._apagar_terceiro(id_, n),
+            ).pack(side="right", padx=(2, 6))
 
         # Rodapé e Paginação
         rodape_tab = ctk.CTkFrame(card_tab, fg_color="transparent")
@@ -329,6 +348,17 @@ class TerceiroView(ctk.CTkFrame):
         ctk.CTkButton(pag, text="1", width=24, height=24, corner_radius=4, fg_color="#38BDF8", text_color="#0B131B", font=fonte(9, "bold")).pack(side="left", padx=2)
         ctk.CTkButton(pag, text="2", width=24, height=24, corner_radius=4, fg_color=COR_CARD_INTERNO, text_color=COR_TEXTO_MUTED).pack(side="left", padx=2)
         ctk.CTkButton(pag, text="›", width=24, height=24, corner_radius=4, fg_color=COR_CARD_INTERNO, text_color=COR_TEXTO_MUTED).pack(side="left", padx=2)
+
+
+    def _apagar_terceiro(self, terceiro_id: Optional[int], nome: str):
+        from tkinter import messagebox
+        if messagebox.askyesno("Confirmar Exclusão", f"Deseja realmente apagar o contato '{nome}'?"):
+            if terceiro_id is not None:
+                try:
+                    self.dao.excluir(terceiro_id)
+                except Exception as exc:
+                    print(f"Erro ao excluir terceiro: {exc}")
+            self._montar_tela()
 
     def _set_filtro(self, f: str):
         self.filtro_tipo = f

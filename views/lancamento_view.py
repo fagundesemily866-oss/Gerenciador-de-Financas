@@ -532,18 +532,19 @@ class LancamentoView(ctk.CTkFrame):
         ctk.CTkLabel(th, text="Descrição", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=150, anchor="w").pack(side="left", padx=(10, 0))
         ctk.CTkLabel(th, text="Categoria", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=100, anchor="w").pack(side="left", padx=10)
         ctk.CTkLabel(th, text="Status", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=80, anchor="w").pack(side="left")
-        ctk.CTkLabel(th, text="Valor (R$)", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, anchor="e").pack(side="right", padx=(0, 24))
+        ctk.CTkLabel(th, text="Ações", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=40, anchor="center").pack(side="right", padx=(4, 6))
+        ctk.CTkLabel(th, text="Valor (R$)", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, anchor="e").pack(side="right", padx=(0, 10))
 
         # Lista de Lançamentos
-        lancamentos_demo = [
-            ("29\nSET", "🛒", "#2E151B", "Supermercado Extra", "Compras do mês", "🍴 Alimentação", "● Pago", "- R$ 320,50", "#F43F5E"),
-            ("28\nSET", "💼", "#102E24", "Salário", "Empresa XYZ", "💼 Salário", "● Pago", "+ R$ 3.500,00", "#00D084"),
-            ("25\nSET", "🏠", "#2E151B", "Aluguel", "Apartamento", "🏠 Moradia", "● Pago", "- R$ 1.200,00", "#F43F5E"),
-            ("23\nSET", "📈", "#102E24", "Rendimento CDB", "Banco Inter", "📈 Investimentos", "● Pago", "+ R$ 150,00", "#00D084"),
-            ("20\nSET", "💡", "#2E151B", "Conta de Luz", "Enel", "📄 Contas", "● Pago", "- R$ 180,90", "#F43F5E"),
-            ("18\nSET", "🚗", "#2E151B", "Combustível", "Posto Ipiranga", "🚗 Transporte", "● Pago", "- R$ 230,00", "#F43F5E"),
-            ("15\nSET", "💻", "#102E24", "Freelance - Projeto", "Cliente ABC", "💼 Serviços", "● Recebido", "+ R$ 1.200,00", "#00D084"),
-        ]
+        lancamentos_demo = getattr(self, "_itens_demo_cache", [
+            ("29\nSET", "🛒", "#2E151B", "Supermercado Extra", "Compras do mês", "🍴 Alimentação", "● Pago", "- R$ 320,50", "#F43F5E", None),
+            ("28\nSET", "💼", "#102E24", "Salário", "Empresa XYZ", "💼 Salário", "● Pago", "+ R$ 3.500,00", "#00D084", None),
+            ("25\nSET", "🏠", "#2E151B", "Aluguel", "Apartamento", "🏠 Moradia", "● Pago", "- R$ 1.200,00", "#F43F5E", None),
+            ("23\nSET", "📈", "#102E24", "Rendimento CDB", "Banco Inter", "📈 Investimentos", "● Pago", "+ R$ 150,00", "#00D084", None),
+            ("20\nSET", "💡", "#2E151B", "Conta de Luz", "Enel", "📄 Contas", "● Pago", "- R$ 180,90", "#F43F5E", None),
+            ("18\nSET", "🚗", "#2E151B", "Combustível", "Posto Ipiranga", "🚗 Transporte", "● Pago", "- R$ 230,00", "#F43F5E", None),
+            ("15\nSET", "💻", "#102E24", "Freelance - Projeto", "Cliente ABC", "💼 Serviços", "● Recebido", "+ R$ 1.200,00", "#00D084", None),
+        ])
 
         # Pegar lançamentos reais do banco
         reais = self.dao.listar_todos()
@@ -557,16 +558,17 @@ class LancamentoView(ctk.CTkFrame):
                 ic = "💼" if eh_rec else "🛒"
                 d_str = getattr(r, "data", "")
                 badge_d = d_str[-5:].replace("-", "\n") if len(d_str) >= 5 else "HOJE"
+                lid = getattr(r, "id", None)
                 demo_convertido.append((
                     badge_d, ic, bg_i, getattr(r, "descricao", "Item"),
                     "Detalhe", getattr(r, "categoria", "Geral"),
                     "● Pago" if not eh_rec else "● Recebido",
-                    f"{sinal}R$ {getattr(r, 'valor', 0):,.2f}", cor_v
+                    f"{sinal}R$ {getattr(r, 'valor', 0):,.2f}", cor_v, lid
                 ))
             if demo_convertido:
                 lancamentos_demo = demo_convertido
 
-        for d_badge, ic, bg_ic, tit, sub, cat_b, st_b, val, cor_val in lancamentos_demo:
+        for d_badge, ic, bg_ic, tit, sub, cat_b, st_b, val, cor_val, lid in lancamentos_demo:
             linha = ctk.CTkFrame(card, fg_color=COR_CARD_INTERNO, corner_radius=8, height=48)
             linha.pack(fill="x", padx=16, pady=3)
             linha.pack_propagate(False)
@@ -600,13 +602,52 @@ class LancamentoView(ctk.CTkFrame):
             st_cor = "#00D084" if "Pago" in st_b or "Recebido" in st_b else "#F59E0B"
             ctk.CTkLabel(linha, text=st_b, font=fonte(10, "bold"), text_color=st_cor, width=70, anchor="w").pack(side="left")
 
-            # Menu ⋮
-            ctk.CTkLabel(linha, text="⋮", font=fonte(14, "bold"), text_color=COR_TEXTO_MUTED, width=20).pack(side="right", padx=(4, 8))
+            # Botão Apagar / Excluir
+            ctk.CTkButton(
+                linha,
+                text="🗑️",
+                width=28,
+                height=28,
+                corner_radius=6,
+                fg_color="transparent",
+                hover_color="#3E1A23",
+                text_color="#F43F5E",
+                font=fonte(11),
+                command=lambda id_=lid, t=tit: self._apagar_lancamento(id_, t),
+            ).pack(side="right", padx=(4, 6))
 
             # Valor
             ctk.CTkLabel(linha, text=val, font=fonte(11, "bold"), text_color=cor_val, anchor="e").pack(side="right", padx=6)
 
         ctk.CTkLabel(card, text="", height=8).pack()
+
+
+    def _apagar_lancamento(self, lancamento_id: Optional[int], descricao: str):
+        """Exclui um lançamento do banco de dados ou da lista em exibição."""
+        from tkinter import messagebox
+        if messagebox.askyesno("Confirmar Exclusão", f"Deseja realmente apagar o lançamento '{descricao}'?"):
+            if lancamento_id is not None:
+                try:
+                    self.dao.excluir(lancamento_id)
+                except Exception as exc:
+                    print(f"Erro ao excluir: {exc}")
+            else:
+                # Remove do cache demo
+                if hasattr(self, "_itens_demo_cache"):
+                    self._itens_demo_cache = [x for x in self._itens_demo_cache if x[3] != descricao]
+                else:
+                    self._itens_demo_cache = [
+                        ("29\nSET", "🛒", "#2E151B", "Supermercado Extra", "Compras do mês", "🍴 Alimentação", "● Pago", "- R$ 320,50", "#F43F5E", None),
+                        ("28\nSET", "💼", "#102E24", "Salário", "Empresa XYZ", "💼 Salário", "● Pago", "+ R$ 3.500,00", "#00D084", None),
+                        ("25\nSET", "🏠", "#2E151B", "Aluguel", "Apartamento", "🏠 Moradia", "● Pago", "- R$ 1.200,00", "#F43F5E", None),
+                        ("23\nSET", "📈", "#102E24", "Rendimento CDB", "Banco Inter", "📈 Investimentos", "● Pago", "+ R$ 150,00", "#00D084", None),
+                        ("20\nSET", "💡", "#2E151B", "Conta de Luz", "Enel", "📄 Contas", "● Pago", "- R$ 180,90", "#F43F5E", None),
+                        ("18\nSET", "🚗", "#2E151B", "Combustível", "Posto Ipiranga", "🚗 Transporte", "● Pago", "- R$ 230,00", "#F43F5E", None),
+                        ("15\nSET", "💻", "#102E24", "Freelance - Projeto", "Cliente ABC", "💼 Serviços", "● Recebido", "+ R$ 1.200,00", "#00D084", None),
+                    ]
+                    self._itens_demo_cache = [x for x in self._itens_demo_cache if x[3] != descricao]
+
+            self._montar_tela()
 
     def _filtrar_aba(self, aba: str):
         self.filtro_aba = aba
