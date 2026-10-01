@@ -1,3 +1,4 @@
+from views.notificacao_toast import GerenciadorNotificacoes
 import customtkinter as ctk
 from PIL import Image
 
@@ -104,53 +105,17 @@ class MenuView(ctk.CTkFrame):
         # Imagem do avatar da sidebar (mantém referência para não ser coletada pelo GC)
         self.avatar_image = None
 
-        # Itens do menu
+        # Itens do menu (chave, rótulo, classe - carregada via lazy loading)
         self.itens_menu = [
-            (
-                "saude",
-                "📊  Dashboard & Saúde",
-                SaudeFinanceiraView
-            ),
-            (
-                "assistente_ia",
-                "🤖  Assistente IA",
-                AssistenteIAView
-            ),
-            (
-                "lancamento",
-                "💰  Lançamentos",
-                LancamentoView
-            ),
-            (
-                "meta",
-                "🎯  Metas",
-                MetaView
-            ),
-            (
-                "simulador",
-                "🔮  Simulador de Cenários",
-                SimuladorView
-            ),
-            (
-                "relatorio",
-                "📄  Relatório Mensal",
-                RelatorioView
-            ),
-            (
-                "terceiro",
-                "🤝  Terceiros",
-                TerceiroView
-            ),
-            (
-                "categoria",
-                "🏷️  Categorias",
-                CategoriaView
-            ),
-            (
-                "usuario",
-                "👤  Meu Perfil",
-                UsuarioView
-            ),
+            ("saude", "📊  Dashboard & Saúde", None),
+            ("assistente_ia", "🤖  Assistente IA", None),
+            ("lancamento", "💰  Lançamentos", None),
+            ("meta", "🎯  Metas", None),
+            ("simulador", "🔮  Simulador de Cenários", None),
+            ("relatorio", "📄  Relatório Mensal", None),
+            ("terceiro", "🤝  Terceiros", None),
+            ("categoria", "🏷️  Categorias", None),
+            ("usuario", "👤  Meu Perfil", None),
         ]
 
         # Breve explicação de cada tela exibida no canto
