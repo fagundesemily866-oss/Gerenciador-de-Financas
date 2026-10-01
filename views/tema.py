@@ -129,3 +129,16 @@ def fonte_hint() -> ctk.CTkFont:
 
 def fonte_grande_valor() -> ctk.CTkFont:
     return fonte(20, "bold")
+
+
+def obter_cor_texto_principal() -> str:
+    return "#0F172A" if ctk.get_appearance_mode().lower() == "light" else "#FFFFFF"
+
+def obter_cor_texto_secundario() -> str:
+    return "#334155" if ctk.get_appearance_mode().lower() == "light" else "#94A3B8"
+
+def obter_cor_canvas_linha() -> str:
+    return "#E2E8F0" if ctk.get_appearance_mode().lower() == "light" else "#1A2D3C"
+
+def obter_cor_canvas_bg() -> str:
+    return "#FFFFFF" if ctk.get_appearance_mode().lower() == "light" else "#101C26"

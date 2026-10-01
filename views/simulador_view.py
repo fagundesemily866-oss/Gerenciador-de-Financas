@@ -319,16 +319,49 @@ class SimuladorView(ctk.CTkFrame):
         self._montar_tela()
 
     def _on_change_corte(self, val):
-        self.corte_despesas_pct = val
-        self.lbl_val_corte.configure(text=f"{int(val)}%")
+        val_fixo = round(float(val) / 5.0) * 5.0
+        self.corte_despesas_pct = val_fixo
+        try:
+            self.slider_corte.set(val_fixo)
+        except Exception:
+            pass
+        self.lbl_val_corte.configure(text=f"{int(val_fixo)}%")
+        self._agendar_atualizacao_drag()
 
     def _on_change_renda(self, val):
-        self.renda_extra_mensal = val
-        self.lbl_val_renda.configure(text=f"R$ {val:,.2f}")
+        val_fixo = round(float(val) / 50.0) * 50.0
+        self.renda_extra_mensal = val_fixo
+        try:
+            self.slider_renda.set(val_fixo)
+        except Exception:
+            pass
+        self.lbl_val_renda.configure(text=f"R$ {val_fixo:,.2f}")
+        self._agendar_atualizacao_drag()
 
     def _on_change_aporte(self, val):
-        self.aporte_metas_mensal = val
-        self.lbl_val_aporte.configure(text=f"R$ {val:,.2f}")
+        val_fixo = round(float(val) / 50.0) * 50.0
+        self.aporte_metas_mensal = val_fixo
+        try:
+            self.slider_aporte.set(val_fixo)
+        except Exception:
+            pass
+        self.lbl_val_aporte.configure(text=f"R$ {val_fixo:,.2f}")
+        self._agendar_atualizacao_drag()
+
+    def _agendar_atualizacao_drag(self):
+        """Atualização reativa em tempo real com debounce ao arrastar os sliders."""
+        if hasattr(self, "_drag_timer") and self._drag_timer:
+            try:
+                self.after_cancel(self._drag_timer)
+            except Exception:
+                pass
+        self._drag_timer = self.after(80, self._atualizar_projecao_live)
+
+    def _atualizar_projecao_live(self):
+        if hasattr(self, "_desenhar_grafico_func"):
+            self._desenhar_grafico_func()
+        if hasattr(self, "_atualizar_cards_dinamicos"):
+            self._atualizar_cards_dinamicos()
 
     def _reset_parametros(self):
         self.corte_despesas_pct = 15.0
@@ -434,10 +467,15 @@ class SimuladorView(ctk.CTkFrame):
             meses = ["Jan/25", "Fev/25", "Mar/25", "Abr/25", "Mai/25", "Jun/25", "Jul/25", "Ago/25", "Set/25", "Out/25", "Nov/25", "Dez/25"]
             step_x = (w - m_esq - m_dir) / (len(meses) - 1)
 
-            # 3 Curvas: Otimista, Planejado, Pessimista
-            curva_oti = [0.98, 0.92, 0.85, 0.77, 0.68, 0.60, 0.52, 0.44, 0.36, 0.28, 0.22, 0.15]
-            curva_pla = [0.98, 0.94, 0.88, 0.82, 0.75, 0.69, 0.63, 0.56, 0.50, 0.43, 0.36, 0.28]
-            curva_pes = [0.98, 0.96, 0.92, 0.88, 0.83, 0.78, 0.73, 0.68, 0.62, 0.57, 0.51, 0.45]
+            # Cálculo dinâmico das 3 curvas baseado no arrasto
+            fator_corte = (self.corte_despesas_pct / 50.0) * 0.25
+            fator_renda = (self.renda_extra_mensal / 2000.0) * 0.20
+            fator_aporte = (self.aporte_metas_mensal / 2000.0) * 0.15
+            boost_total = fator_corte + fator_renda + fator_aporte
+
+            curva_oti = [max(0.08, 0.98 - i * (0.075 + boost_total * 0.08)) for i in range(len(meses))]
+            curva_pla = [max(0.18, 0.98 - i * (0.060 + boost_total * 0.05)) for i in range(len(meses))]
+            curva_pes = [max(0.35, 0.98 - i * (0.045 + boost_total * 0.02)) for i in range(len(meses))]
 
             pts_oti = []
             pts_pla = []
@@ -477,14 +515,20 @@ class SimuladorView(ctk.CTkFrame):
             # Tooltip Flutuante no Canto Direito
             bx, by = w - m_dir + 10, m_top + 10
             canvas_proj.create_rectangle(bx, by, bx + 95, by + 75, fill="#0D1A24", outline="#1E3143", width=1)
-            canvas_proj.create_text(bx + 47, by + 12, text="Dez/2025", fill="#FFFFFF", font=("Segoe UI", 8, "bold"))
-            canvas_proj.create_text(bx + 8, by + 28, text="● Otimista", fill="#00D084", font=("Segoe UI", 7), anchor="w")
-            canvas_proj.create_text(bx + 88, by + 28, text="R$ 42.600", fill="#FFFFFF", font=("Segoe UI", 7, "bold"), anchor="e")
-            canvas_proj.create_text(bx + 8, by + 44, text="● Planejado", fill="#38BDF8", font=("Segoe UI", 7), anchor="w")
-            canvas_proj.create_text(bx + 88, by + 44, text="R$ 36.000", fill="#FFFFFF", font=("Segoe UI", 7, "bold"), anchor="e")
-            canvas_proj.create_text(bx + 8, by + 60, text="● Pessimista", fill="#F43F5E", font=("Segoe UI", 7), anchor="w")
-            canvas_proj.create_text(bx + 88, by + 60, text="R$ 27.400", fill="#FFFFFF", font=("Segoe UI", 7, "bold"), anchor="e")
+            meses_tot = int(self.horizonte_anos * 12)
+            sal_oti = 30000 + (self.renda_extra_mensal + 1200 + (self.corte_despesas_pct * 80)) * meses_tot * 0.7
+            sal_pla = 25000 + (self.renda_extra_mensal * 0.8 + 800 + (self.corte_despesas_pct * 60)) * meses_tot * 0.6
+            sal_pes = 18000 + (self.renda_extra_mensal * 0.4 + 400 + (self.corte_despesas_pct * 30)) * meses_tot * 0.5
 
+            canvas_proj.create_text(bx + 47, by + 12, text=f"{meses_tot} Meses", fill="#FFFFFF", font=("Segoe UI", 8, "bold"))
+            canvas_proj.create_text(bx + 8, by + 28, text="● Otimista", fill="#00D084", font=("Segoe UI", 7), anchor="w")
+            canvas_proj.create_text(bx + 88, by + 28, text=f"R$ {sal_oti/1000:.1f}k", fill="#FFFFFF", font=("Segoe UI", 7, "bold"), anchor="e")
+            canvas_proj.create_text(bx + 8, by + 44, text="● Planejado", fill="#38BDF8", font=("Segoe UI", 7), anchor="w")
+            canvas_proj.create_text(bx + 88, by + 44, text=f"R$ {sal_pla/1000:.1f}k", fill="#FFFFFF", font=("Segoe UI", 7, "bold"), anchor="e")
+            canvas_proj.create_text(bx + 8, by + 60, text="● Pessimista", fill="#F43F5E", font=("Segoe UI", 7), anchor="w")
+            canvas_proj.create_text(bx + 88, by + 60, text=f"R$ {sal_pes/1000:.1f}k", fill="#FFFFFF", font=("Segoe UI", 7, "bold"), anchor="e")
+
+        self._desenhar_grafico_func = desenhar_grafico
         canvas_proj.bind("<Configure>", desenhar_grafico)
         canvas_proj.after(100, desenhar_grafico)
 

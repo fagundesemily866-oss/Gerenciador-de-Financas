@@ -1,16 +1,7 @@
 import customtkinter as ctk
 from PIL import Image
 
-from views.usuario_view import UsuarioView
-from views.lancamento_view import LancamentoView
-from views.saude_financeira_view import SaudeFinanceiraView
-from views.categoria_view import CategoriaView
-from views.meta_view import MetaView
-from views.terceiro_view import TerceiroView
-from views.simulador_view import SimuladorView
-from views.relatorio_view import RelatorioView
-from views.assistente_ia_view import AssistenteIAView
-from views.notificacao_toast import GerenciadorNotificacoes
+# Importações lazy (feitas só quando a view é aberta pela 1a vez)
 from views.tema import (
     COR_CARD, COR_CARD_INTERNO, COR_CARD_USER_BG, COR_CARD_USER_BORDA, COR_CARD_HOVER,
     COR_BORDA, COR_SIDEBAR, COR_TEXTO_PRINCIPAL, COR_TEXTO_SECUNDARIO,
@@ -21,6 +12,31 @@ from views.tema import (
     COR_FECHAR_BG, COR_FECHAR_HOVER, COR_FECHAR_TEXTO,
     fonte, fonte_titulo, fonte_subtitulo, fonte_corpo, fonte_pequena,
 )
+
+
+# Mapa de imports lazy: chave -> (módulo, classe)
+_VIEWS_LAZY = {
+    "saude": ("views.saude_financeira_view", "SaudeFinanceiraView"),
+    "assistente_ia": ("views.assistente_ia_view", "AssistenteIAView"),
+    "lancamento": ("views.lancamento_view", "LancamentoView"),
+    "meta": ("views.meta_view", "MetaView"),
+    "simulador": ("views.simulador_view", "SimuladorView"),
+    "relatorio": ("views.relatorio_view", "RelatorioView"),
+    "terceiro": ("views.terceiro_view", "TerceiroView"),
+    "categoria": ("views.categoria_view", "CategoriaView"),
+    "usuario": ("views.usuario_view", "UsuarioView"),
+}
+
+
+def _import_view_class(chave: str):
+    """Importa dinamicamente a classe de view sob demanda."""
+    if chave not in _VIEWS_LAZY:
+        return None
+    modulo_path, classe_nome = _VIEWS_LAZY[chave]
+    import importlib
+    modulo = importlib.import_module(modulo_path)
+    return getattr(modulo, classe_nome)
+
 
 
 
@@ -151,15 +167,13 @@ class MenuView(ctk.CTkFrame):
         }
 
         # Layout principal
-        self.grid_columnconfigure(
-            1,
-            weight=1
-        )
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
-        self.grid_rowconfigure(
-            0,
-            weight=1
-        )
+        # Estado da sidebar (expandida=True / recolhida=False)
+        self._sidebar_expandida = True
+        self.SIDEBAR_LARGURA = 240
+        self.SIDEBAR_MINI = 58
 
         # Inicializar gerenciador de notificações
         self.notificador = GerenciadorNotificacoes(self.winfo_toplevel())
@@ -171,6 +185,9 @@ class MenuView(ctk.CTkFrame):
         # Tela inicial
         self.selecionar("saude")
 
+        # Adaptar layout quando a janela for redimensionada
+        self.winfo_toplevel().bind("<Configure>", self._on_resize, add="+")
+
     # ==============================================================
     # SIDEBAR
     # ==============================================================
@@ -178,11 +195,77 @@ class MenuView(ctk.CTkFrame):
     # ==============================================================
     # SIDEBAR
     # ==============================================================
+
+    def _on_resize(self, event=None):
+        """Recolhe automaticamente a sidebar quando a janela fica muito estreita."""
+        try:
+            largura = self.winfo_toplevel().winfo_width()
+        except Exception:
+            return
+        if largura < 1100 and self._sidebar_expandida:
+            self._recolher_sidebar()
+        elif largura >= 1100 and not self._sidebar_expandida:
+            self._expandir_sidebar()
+
+    def _recolher_sidebar(self):
+        self._sidebar_expandida = False
+        self.sidebar.configure(width=self.SIDEBAR_MINI)
+        # Oculta textos do logo
+        for w in self._sidebar_texto_widgets:
+            try:
+                w.pack_forget()
+            except Exception:
+                pass
+        # Oculta card do usuário
+        try:
+            self.card_user.pack_forget()
+        except Exception:
+            pass
+        # Botões viram só ícone, centralizado
+        for chave, botao in self.botoes.items():
+            botao.configure(
+                text=getattr(botao, "_icone_mini", "●"),
+                anchor="center",
+                width=42,
+            )
+        self._btn_toggle.configure(text="›")
+
+    def _expandir_sidebar(self):
+        self._sidebar_expandida = True
+        self.sidebar.configure(width=self.SIDEBAR_LARGURA)
+        # Restaura textos do logo
+        for w in self._sidebar_texto_widgets:
+            try:
+                w.pack(anchor="w")
+            except Exception:
+                pass
+        # Restaura card do usuário
+        try:
+            self.card_user.pack(fill="x", padx=14, pady=(0, 14))
+        except Exception:
+            pass
+        # Botões restauram texto completo
+        for chave, botao in self.botoes.items():
+            botao.configure(
+                text=getattr(botao, "_texto_completo", chave),
+                anchor="w",
+                width=0,
+            )
+        self._btn_toggle.configure(text="‹")
+
+    def _toggle_sidebar(self):
+        if self._sidebar_expandida:
+            self._recolher_sidebar()
+        else:
+            self._expandir_sidebar()
 
     def _build_sidebar(self):
+        self._sidebar_texto_widgets = []
+        self._sidebar_icone_widgets = []
+
         self.sidebar = ctk.CTkFrame(
             self,
-            width=240,
+            width=self.SIDEBAR_LARGURA,
             corner_radius=0,
             fg_color=COR_SIDEBAR,
         )
@@ -193,9 +276,9 @@ class MenuView(ctk.CTkFrame):
         )
         self.sidebar.grid_propagate(False)
 
-        # 1. LOGO NO TOPO
+        # 1. LOGO + BOTÃO TOGGLE NO TOPO
         logo_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        logo_frame.pack(fill="x", padx=16, pady=(18, 12))
+        logo_frame.pack(fill="x", padx=12, pady=(14, 8))
 
         # Ícone estilizado do Logo
         logo_icon_box = ctk.CTkFrame(
@@ -207,7 +290,7 @@ class MenuView(ctk.CTkFrame):
             border_width=1,
             border_color=("#99F6E4", "#134E48"),
         )
-        logo_icon_box.pack(side="left", padx=(0, 10))
+        logo_icon_box.pack(side="left", padx=(0, 8))
         logo_icon_box.pack_propagate(False)
 
         ctk.CTkLabel(
@@ -219,21 +302,40 @@ class MenuView(ctk.CTkFrame):
         logo_text_frame = ctk.CTkFrame(logo_frame, fg_color="transparent")
         logo_text_frame.pack(side="left", fill="both", expand=True)
 
-        ctk.CTkLabel(
+        lbl_g = ctk.CTkLabel(
             logo_text_frame,
             text="Gerenciador de",
             font=fonte(12, "bold"),
             text_color=COR_TEXTO_PRINCIPAL,
             anchor="w",
-        ).pack(anchor="w")
+        )
+        lbl_g.pack(anchor="w")
+        self._sidebar_texto_widgets.append(lbl_g)
 
-        ctk.CTkLabel(
+        lbl_f = ctk.CTkLabel(
             logo_text_frame,
             text="Finanças Pessoais",
             font=fonte(11),
             text_color=COR_TEXTO_SECUNDARIO,
             anchor="w",
-        ).pack(anchor="w")
+        )
+        lbl_f.pack(anchor="w")
+        self._sidebar_texto_widgets.append(lbl_f)
+
+        # Botão toggle de colapso
+        self._btn_toggle = ctk.CTkButton(
+            logo_frame,
+            text="‹",
+            width=28,
+            height=28,
+            corner_radius=8,
+            fg_color=COR_CARD_INTERNO,
+            hover_color=COR_CARD_HOVER,
+            text_color=COR_TEXTO_SECUNDARIO,
+            font=fonte(16, "bold"),
+            command=self._toggle_sidebar,
+        )
+        self._btn_toggle.pack(side="right", padx=(4, 0))
 
         # 2. CARD DO USUÁRIO LOGADO
         self.card_user = ctk.CTkFrame(
@@ -298,6 +400,11 @@ class MenuView(ctk.CTkFrame):
         nav_container.pack(fill="both", expand=True, padx=12, pady=0)
 
         # Botões do Menu
+        # Emojis para modo mini (sidebar recolhida)
+        _icones_menu = {"saude": "📊", "assistente_ia": "🤖", "lancamento": "💰",
+                        "meta": "🎯", "simulador": "🔮", "relatorio": "📄",
+                        "terceiro": "🤝", "categoria": "🏷", "usuario": "👤"}
+
         for chave, texto, _ in self.itens_menu:
             botao = ctk.CTkButton(
                 nav_container,
@@ -313,6 +420,9 @@ class MenuView(ctk.CTkFrame):
             )
             botao.pack(fill="x", pady=2)
             self.botoes[chave] = botao
+            # Guarda o texto original para restaurar depois
+            botao._texto_completo = texto
+            botao._icone_mini = _icones_menu.get(chave, "●")
 
         # 4. RODAPÉ DA SIDEBAR
         rodape_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
@@ -372,6 +482,25 @@ class MenuView(ctk.CTkFrame):
 
     def _alterar_tema(self, modo: str):
         ctk.set_appearance_mode(modo)
+        # Limpa views em cache para aplicar as cores do novo tema
+        views_antigas = list(self.views.values())
+        chave_atual = None
+        for k, v in self.views.items():
+            if v == self.view_atual:
+                chave_atual = k
+                break
+
+        self.views.clear()
+        self.view_atual = None
+
+        for v in views_antigas:
+            try:
+                v.destroy()
+            except Exception:
+                pass
+
+        if chave_atual:
+            self.after(50, lambda: self.selecionar(chave_atual))
 
     # ==============================================================
     # AVATAR DA SIDEBAR
@@ -437,28 +566,18 @@ class MenuView(ctk.CTkFrame):
     # ==============================================================
 
     def selecionar(self, chave):
-
-        # ----------------------------------------------------------
-        # Descobrir a view correspondente
-        # ----------------------------------------------------------
-
         texto = None
         classe_view = None
 
-        for c, t, v in self.itens_menu:
-
+        for c, t, _ in self.itens_menu:
             if c == chave:
                 texto = t
-                classe_view = v
                 break
 
         if texto is None:
             return
 
-        # ----------------------------------------------------------
         # Atualizar aparência dos botões
-        # ----------------------------------------------------------
-
         for c, botao in self.botoes.items():
             if c == chave:
                 botao.configure(
@@ -473,54 +592,40 @@ class MenuView(ctk.CTkFrame):
                     font=fonte(12, "normal"),
                 )
 
-        # ----------------------------------------------------------
-        # ESCONDER A VIEW ATUAL
-        # ----------------------------------------------------------
-
+        # Esconder view atual
         if self.view_atual is not None:
             self.view_atual.grid_forget()
 
-        # ----------------------------------------------------------
-        # Criar a nova view se ainda não existir
-        # ----------------------------------------------------------
-
+        # Criar a nova view se ainda não existir (lazy loading)
         if chave not in self.views:
             titulo_limpo = texto.split("  ", 1)[-1]
 
+            # Import lazy
+            classe_view = _import_view_class(chave)
+
             if classe_view is None:
-                nova_view = EmConstrucaoView(
+                nova_view = EmConstrucaoView(self.container, titulo=titulo_limpo)
+            elif chave == "usuario":
+                nova_view = classe_view(
                     self.container,
-                    titulo=titulo_limpo
+                    usuario_atual=self.usuario_logado,
+                    on_foto_atualizada=self.atualizar_avatar_sidebar,
                 )
             else:
-                if classe_view == UsuarioView:
-                    nova_view = classe_view(
-                        self.container,
-                        usuario_atual=self.usuario_logado,
-                        on_foto_atualizada=self.atualizar_avatar_sidebar,
-                    )
-                else:
-                    nova_view = classe_view(self.container)
+                nova_view = classe_view(self.container)
 
             self.views[chave] = nova_view
 
-        # ----------------------------------------------------------
-        # Pegar a view
-        # ----------------------------------------------------------
-
         self.view_atual = self.views[chave]
 
-        # ----------------------------------------------------------
         # Atualizar dados
-        # ----------------------------------------------------------
-
         if hasattr(self.view_atual, "atualizar_dados"):
-            self.view_atual.atualizar_dados()
+            try:
+                self.view_atual.atualizar_dados()
+            except Exception:
+                pass
 
-        # ----------------------------------------------------------
-        # MOSTRAR A NOVA VIEW
-        # ----------------------------------------------------------
-
+        # Mostrar a nova view
         self.view_atual.grid(
             row=0,
             column=0,

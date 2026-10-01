@@ -85,6 +85,9 @@ class SaudeFinanceiraView(ctk.CTkFrame):
         # 2. MÉTRICAS (6 CARDS)
         self._build_metricas(scroll)
 
+        # 2.1 SIMULADOR INTERATIVO: ARRASTAR FIXO DE 5 EM 5 PARA ECONOMIA
+        self._build_slider_economia(scroll)
+
         # 3. LINHA CENTRAL (3 CARDS COM GRÁFICOS)
         self._build_linha_graficos(scroll)
 
@@ -173,6 +176,15 @@ class SaudeFinanceiraView(ctk.CTkFrame):
         self.mes_combo.set("Abril de 2026")
         self.mes_combo.pack(side="left", padx=2, pady=3)
 
+        def _mudar_mes(delta):
+            valores = ["Abril de 2026", "Março de 2026", "Fevereiro de 2026", "Janeiro de 2026"]
+            atual = self.mes_combo.get()
+            if atual in valores:
+                idx = valores.index(atual)
+                novo_idx = max(0, min(len(valores) - 1, idx + delta))
+                self.mes_combo.set(valores[novo_idx])
+                self.atualizar_dados()
+
         btn_prev = ctk.CTkButton(
             nav_mes,
             text="‹",
@@ -183,6 +195,7 @@ class SaudeFinanceiraView(ctk.CTkFrame):
             hover_color=COR_CARD_INTERNO,
             text_color=COR_TEXTO_SECUNDARIO,
             font=fonte(16, "bold"),
+            command=lambda: _mudar_mes(1),
         )
         btn_prev.pack(side="left", padx=(0, 2), pady=3)
 
@@ -196,6 +209,7 @@ class SaudeFinanceiraView(ctk.CTkFrame):
             hover_color=COR_CARD_INTERNO,
             text_color=COR_TEXTO_SECUNDARIO,
             font=fonte(16, "bold"),
+            command=lambda: _mudar_mes(-1),
         )
         btn_next.pack(side="left", padx=(0, 6), pady=3)
 
@@ -367,6 +381,109 @@ class SaudeFinanceiraView(ctk.CTkFrame):
                 text_color=item["cor_footer"],
                 anchor="w",
             ).pack(anchor="w", padx=12, pady=(0, 12))
+
+
+    # ==============================================================
+    # 2.1 BARRA INTERATIVA: META DE ECONOMIA (ARRASTAR DE 5% EM 5%)
+    # ==============================================================
+    def _build_slider_economia(self, parent):
+        self.pct_economia_alvo = getattr(self, "pct_economia_alvo", 20.0)
+
+        # Base de renda do mês
+        lancamentos = self.dao.listar_todos()
+        rec_total = sum(l.valor for l in lancamentos if getattr(l, "tipo", "") == "Receita") if lancamentos else 8950.0
+        if rec_total <= 0:
+            rec_total = 8950.0
+        self._rec_base_economia = rec_total
+
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=COR_CARD,
+            corner_radius=12,
+            border_width=1,
+            border_color=COR_BORDA,
+        )
+        card.pack(fill="x", pady=(0, 14))
+
+        topo = ctk.CTkFrame(card, fg_color="transparent")
+        topo.pack(fill="x", padx=16, pady=(12, 4))
+
+        ic_b = ctk.CTkFrame(topo, width=28, height=28, corner_radius=14, fg_color="#0D2E2B")
+        ic_b.pack(side="left", padx=(0, 8))
+        ic_b.pack_propagate(False)
+        ctk.CTkLabel(ic_b, text="🐷", font=fonte(12)).place(relx=0.5, rely=0.5, anchor="center")
+
+        ctk.CTkLabel(topo, text="Planejador Rápido de Economia", font=fonte(12, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(side="left")
+        ctk.CTkLabel(topo, text="  (Arraste de 5% em 5% para simular sua poupança)", font=fonte(10), text_color=COR_TEXTO_MUTED).pack(side="left")
+
+        self.lbl_pct_eco = ctk.CTkLabel(
+            topo,
+            text=f"{int(self.pct_economia_alvo)}% da Renda",
+            font=fonte(13, "bold"),
+            text_color="#00D084",
+        )
+        self.lbl_pct_eco.pack(side="right")
+
+        # Linha com o Slider
+        s_box = ctk.CTkFrame(card, fg_color="transparent")
+        s_box.pack(fill="x", padx=16, pady=(2, 4))
+
+        self.slider_eco = ctk.CTkSlider(
+            s_box,
+            from_=5,
+            to=50,
+            number_of_steps=9,  # 5%, 10%, 15%, 20%, 25%, 30%, 35%, 40%, 45%, 50%
+            progress_color="#00D084",
+            button_color="#00D084",
+            button_hover_color="#00B875",
+            command=self._on_drag_economia,
+        )
+        self.slider_eco.set(self.pct_economia_alvo)
+        self.slider_eco.pack(fill="x", pady=(0, 2))
+
+        # Marcações de 5 em 5
+        m_row = ctk.CTkFrame(card, fg_color="transparent")
+        m_row.pack(fill="x", padx=16, pady=(0, 6))
+        for m_txt in ["5%", "10%", "15%", "20%", "25%", "30%", "35%", "40%", "45%", "50%"]:
+            ctk.CTkLabel(m_row, text=m_txt, font=fonte(8), text_color=COR_TEXTO_MUTED).pack(side="left", expand=True)
+
+        # 3 Mini Indicadores de Resultado da Economia Arrastada
+        res_row = ctk.CTkFrame(card, fg_color=COR_CARD_INTERNO, corner_radius=8)
+        res_row.pack(fill="x", padx=16, pady=(0, 12))
+        res_row.grid_columnconfigure((0, 1, 2), weight=1)
+
+        val_mes = (self.pct_economia_alvo / 100.0) * self._rec_base_economia
+        val_ano = val_mes * 12
+        disp_mes = self._rec_base_economia - val_mes
+
+        self.lbl_res_mes = ctk.CTkLabel(res_row, text=f"💰 Guardar por Mês: R$ {val_mes:,.2f}", font=fonte(10, "bold"), text_color="#00D084")
+        self.lbl_res_mes.grid(row=0, column=0, pady=8, padx=6)
+
+        self.lbl_res_ano = ctk.CTkLabel(res_row, text=f"📈 Projeção em 1 Ano: R$ {val_ano:,.2f}", font=fonte(10, "bold"), text_color="#38BDF8")
+        self.lbl_res_ano.grid(row=0, column=1, pady=8, padx=6)
+
+        self.lbl_res_disp = ctk.CTkLabel(res_row, text=f"🛡️ Disponível p/ Gastar: R$ {disp_mes:,.2f}", font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL)
+        self.lbl_res_disp.grid(row=0, column=2, pady=8, padx=6)
+
+    def _on_drag_economia(self, val):
+        # Arrastar fixo de 5 em 5 para economia
+        val_fixo = round(float(val) / 5.0) * 5.0
+        self.pct_economia_alvo = val_fixo
+        try:
+            self.slider_eco.set(val_fixo)
+        except Exception:
+            pass
+
+        self.lbl_pct_eco.configure(text=f"{int(val_fixo)}% da Renda")
+
+        rec = getattr(self, "_rec_base_economia", 8950.0)
+        val_mes = (val_fixo / 100.0) * rec
+        val_ano = val_mes * 12
+        disp_mes = max(0.0, rec - val_mes)
+
+        self.lbl_res_mes.configure(text=f"💰 Guardar por Mês: R$ {val_mes:,.2f}")
+        self.lbl_res_ano.configure(text=f"📈 Projeção em 1 Ano: R$ {val_ano:,.2f}")
+        self.lbl_res_disp.configure(text=f"🛡️ Disponível p/ Gastar: R$ {disp_mes:,.2f}")
 
     # ==============================================================
     # 3. LINHA CENTRAL: 3 PAINÉIS COM GRÁFICOS

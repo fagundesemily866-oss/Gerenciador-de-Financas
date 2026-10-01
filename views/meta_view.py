@@ -1,12 +1,5 @@
 """
-View de Metas Financeiras — Redesign Fiel à Referência (04_metas.png)
-======================================================================
-
-Layout completo para acompanhamento e criação de objetivos financeiros:
-1. Topo: Cabeçalho com citação inspiradora e métricas consolidadas (Total poupado, Metas ativas, Em dia, Atrasadas).
-2. Coluna Esquerda: Grade de Cards de Metas com anéis de progresso circulares (Canvas),
-   valores detalhados, prazos, barras de progresso teal e badges motivacionais.
-3. Coluna Direita: Formulário "Nova Meta" com campos estruturados e painel gráfico "Projeção de Economia".
+View de Metas Financeiras — Com dados reais, celebração de meta atingida e modo claro correto.
 """
 import tkinter as tk
 from datetime import datetime, date
@@ -25,13 +18,15 @@ from views.tema import (
 )
 
 
+
 class MetaView(ctk.CTkFrame):
-    """Tela de Metas Financeiras redesenhada fiel à imagem 04_metas.png."""
+    """Tela de Metas Financeiras com dados reais, celebração e modo claro."""
 
     def __init__(self, parent, dao: Optional[MetaDAO] = None):
         super().__init__(parent, fg_color="transparent")
         self.dao = dao or MetaDAO()
         self.filtro_aba = "Todas"
+        self._aguardando_celebracao = []  # IDs de metas para celebrar
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -39,7 +34,21 @@ class MetaView(ctk.CTkFrame):
         self._montar_tela()
 
     def atualizar_dados(self):
+        self._verificar_metas_atingidas()
         self._montar_tela()
+
+    def _verificar_metas_atingidas(self):
+        """Verifica metas que atingiram 100% e dispara celebração."""
+        try:
+            metas = self.dao.listar_todas()
+            for m in metas:
+                if (
+                    m.get("concluida") == 1
+                    and m.get("celebracao_exibida") == 0
+                ):
+                    self._aguardando_celebracao.append(m["id"])
+        except Exception:
+            pass
 
     def _montar_tela(self):
         for w in self.winfo_children():
@@ -63,6 +72,131 @@ class MetaView(ctk.CTkFrame):
 
         self._build_coluna_metas(corpo)
         self._build_coluna_formulario(corpo)
+
+        # Celebrar metas atingidas (após renderizar)
+        if self._aguardando_celebracao:
+            self.after(500, self._disparar_proxima_celebracao)
+
+    def _disparar_proxima_celebracao(self):
+        if not self._aguardando_celebracao:
+            return
+        meta_id = self._aguardando_celebracao.pop(0)
+        meta = self.dao.buscar_por_id(meta_id)
+        if meta:
+            self._exibir_celebracao(
+                meta_id=meta_id,
+                titulo=meta.get("descricao", "Meta"),
+                valor=float(meta.get("valor_alvo", 0)),
+            )
+
+    def _exibir_celebracao(self, meta_id: int, titulo: str, valor: float):
+        from views.celebracao_view import CelebracaoMetaView
+        CelebracaoMetaView(
+            self.winfo_toplevel(),
+            titulo_meta=titulo,
+            valor_meta=valor,
+            meta_id=meta_id,
+            on_aumentar=self._on_aumentar_meta,
+            on_recuar=self._on_recuar_meta,
+            on_manter=self._on_manter_meta,
+            on_excluir=self._on_excluir_meta,
+        )
+
+    def _on_aumentar_meta(self, meta_id: int):
+        """Abre diálogo para o usuário definir novo valor alvo."""
+        # Marca celebração como exibida
+        try:
+            self.dao.marcar_celebracao_exibida(meta_id)
+        except Exception:
+            pass
+        self._mostrar_dialog_aumentar(meta_id)
+
+    def _mostrar_dialog_aumentar(self, meta_id: int):
+        """Janela simples para inserir novo valor alvo."""
+        dialog = ctk.CTkToplevel(self.winfo_toplevel())
+        dialog.title("Aumentar Meta")
+        dialog.geometry("380x200")
+        dialog.resizable(False, False)
+        dialog.attributes("-topmost", True)
+        dialog.grab_set()
+        dialog.configure(fg_color="#101C26")
+
+        ctk.CTkLabel(dialog, text="Novo valor alvo da meta (R$)",
+            font=fonte(12, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(pady=(20, 8))
+
+        entry = ctk.CTkEntry(dialog, placeholder_text="Ex: 5000.00", height=38,
+            fg_color=COR_CARD_INTERNO, border_color=COR_BORDA, font=fonte(12))
+        entry.pack(fill="x", padx=30)
+
+        def confirmar():
+            try:
+                novo = float(entry.get().replace(",", ".").strip())
+                if novo > 0:
+                    self.dao.aumentar_meta(meta_id, novo)
+            except Exception:
+                pass
+            dialog.destroy()
+            self._montar_tela()
+
+        ctk.CTkButton(dialog, text="Confirmar", height=38,
+            fg_color="#00D084", hover_color="#00B875", text_color="#0B131B",
+            font=fonte(11, "bold"), command=confirmar).pack(pady=14, padx=30, fill="x")
+
+
+    def _on_recuar_meta(self, meta_id: int):
+        """Abre diálogo para o usuário recuar ou reduzir o valor da meta."""
+        try:
+            self.dao.marcar_celebracao_exibida(meta_id)
+        except Exception:
+            pass
+        self._mostrar_dialog_recuar(meta_id)
+
+    def _mostrar_dialog_recuar(self, meta_id: int):
+        """Janela para definir valor recuado da meta."""
+        dialog = ctk.CTkToplevel(self.winfo_toplevel())
+        dialog.title("Recuar Meta")
+        dialog.geometry("380x200")
+        dialog.resizable(False, False)
+        dialog.attributes("-topmost", True)
+        dialog.grab_set()
+        dialog.configure(fg_color="#101C26")
+
+        ctk.CTkLabel(dialog, text="Novo valor recuado da meta (R$)",
+            font=fonte(12, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(pady=(20, 8))
+
+        entry = ctk.CTkEntry(dialog, placeholder_text="Ex: 2500.00", height=38,
+            fg_color=COR_CARD_INTERNO, border_color=COR_BORDA, font=fonte(12))
+        entry.pack(fill="x", padx=30)
+
+        def confirmar():
+            try:
+                novo = float(entry.get().replace(",", ".").strip())
+                if novo > 0:
+                    self.dao.aumentar_meta(meta_id, novo)
+            except Exception:
+                pass
+            dialog.destroy()
+            self._montar_tela()
+
+        ctk.CTkButton(dialog, text="Confirmar Recuo", height=38,
+            fg_color="#F59E0B", hover_color="#D97706", text_color="#0B131B",
+            font=fonte(11, "bold"), command=confirmar).pack(pady=14, padx=30, fill="x")
+
+    def _on_excluir_meta(self, meta_id: int):
+        try:
+            self.dao.marcar_celebracao_exibida(meta_id)
+            self.dao.excluir(meta_id)
+        except Exception:
+            pass
+        self._montar_tela()
+
+    def _on_manter_meta(self, meta_id: int):
+        try:
+            self.dao.marcar_celebracao_exibida(meta_id)
+        except Exception:
+            pass
+        self._montar_tela()
+
 
     # ==============================================================
     # 1. CABEÇALHO
@@ -99,7 +233,7 @@ class MetaView(ctk.CTkFrame):
         ctk.CTkLabel(citacao_box, text="🏔️", font=fonte(24)).pack(side="left")
 
     # ==============================================================
-    # 2. MÉTRICAS (4 CARDS)
+    # 2. MÉTRICAS (4 CARDS) — dados reais
     # ==============================================================
     def _build_metricas(self, parent):
         grid = ctk.CTkFrame(parent, fg_color="transparent")
@@ -107,19 +241,23 @@ class MetaView(ctk.CTkFrame):
         for c in range(4):
             grid.grid_columnconfigure(c, weight=1)
 
-        cards = [
-            ("🐷", "#0D2E2B", "Total poupado", "R$ 12.350,00", "+18% em relação ao mês anterior", "#00D084"),
-            ("🎯", "#122538", "Metas ativas", "4", "de 5 metas no total", "#38BDF8"),
-            ("✔", "#0D2E2B", "Em dia", "3", "75% no prazo", "#00D084"),
-            ("🕒", "#2E151B", "Atrasadas", "1", "25% precisam de atenção", "#F43F5E"),
-        ]
-
-        # Atualizar com dados reais se existirem
+        # Dados reais do banco
         reais = self.dao.listar_todas()
-        if reais:
-            tot = sum(getattr(m, "valor_atual", 0) for m in reais)
-            cards[0] = ("🐷", "#0D2E2B", "Total poupado", f"R$ {tot:,.2f}", "Acumulado em metas", "#00D084")
-            cards[1] = ("🎯", "#122538", "Metas ativas", str(len(reais)), f"{len(reais)} cadastradas", "#38BDF8")
+        tot_poupado = sum(float(m.get("valor_atual", 0)) for m in reais)
+        ativas = [m for m in reais if not m.get("concluida")]
+        em_dia = [m for m in ativas if float(m.get("valor_atual", 0)) >= (
+            float(m.get("valor_alvo", 1)) * 0.5)]
+        atrasadas = [m for m in ativas if m not in em_dia]
+
+        pct_em_dia = (len(em_dia) / len(ativas) * 100) if ativas else 0
+        pct_atrasadas = (len(atrasadas) / len(ativas) * 100) if ativas else 0
+
+        cards = [
+            ("🐷", "#0D2E2B", "Total poupado", f"R$ {tot_poupado:,.2f}", "Acumulado em metas", "#00D084"),
+            ("🎯", "#122538", "Metas ativas", str(len(ativas)), f"{len(reais)} cadastradas", "#38BDF8"),
+            ("✔", "#0D2E2B", "Em dia", str(len(em_dia)), f"{pct_em_dia:.0f}% no prazo", "#00D084"),
+            ("🕒", "#2E151B", "Atrasadas", str(len(atrasadas)), f"{pct_atrasadas:.0f}% precisam de atenção", "#F43F5E"),
+        ]
 
         for idx, (ic, bg_ic, tit, val, sub, cor_val) in enumerate(cards):
             card = ctk.CTkFrame(grid, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
@@ -141,30 +279,36 @@ class MetaView(ctk.CTkFrame):
 
             ctk.CTkLabel(card, text=sub, font=fonte(9), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w", padx=14, pady=(0, 10))
 
+
     # ==============================================================
-    # 3. COLUNA ESQUERDA: LISTA DE METAS
+    # 3. COLUNA ESQUERDA: LISTA DE METAS (dados reais)
     # ==============================================================
     def _build_coluna_metas(self, parent):
         col = ctk.CTkFrame(parent, fg_color="transparent")
         col.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
 
-        # Topo: Título "Minhas Metas", Filtros e Ordenação
-        topo = ctk.CTkFrame(col, fg_color="transparent")
-        topo.pack(fill="x", pady=(0, 10))
-        topo.grid_columnconfigure(0, weight=1)
+        # Topo
+        ctk.CTkLabel(col, text="Minhas Metas", font=fonte(14, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", pady=(0, 8))
 
-        ctk.CTkLabel(topo, text="Minhas Metas", font=fonte(14, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", pady=(0, 6))
-
+        # Filtros
         bar_f = ctk.CTkFrame(col, fg_color="transparent")
         bar_f.pack(fill="x", pady=(0, 10))
 
-        # Filtros em abas
         abas = ctk.CTkFrame(bar_f, fg_color=COR_CARD_INTERNO, corner_radius=8, height=32)
         abas.pack(side="left")
 
-        for aba_txt in ["Todas (5)", "Em andamento (4)", "Concluídas (1)", "Atrasadas (1)"]:
-            nome_p = aba_txt.split()[0]
-            ativo = (nome_p == self.filtro_aba)
+        # Dados reais
+        metas_reais = self.dao.listar_todas()
+        total = len(metas_reais)
+        andamento = len([m for m in metas_reais if not m.get("concluida")])
+        concluidas = len([m for m in metas_reais if m.get("concluida")])
+
+        for aba_txt, aba_key in [
+            (f"Todas ({total})", "Todas"),
+            (f"Em andamento ({andamento})", "Em andamento"),
+            (f"Concluídas ({concluidas})", "Concluídas"),
+        ]:
+            ativo = (aba_key == self.filtro_aba or (self.filtro_aba == "Todas" and aba_key == "Todas"))
             ctk.CTkButton(
                 abas,
                 text=aba_txt,
@@ -173,109 +317,61 @@ class MetaView(ctk.CTkFrame):
                 fg_color="#00D084" if ativo else "transparent",
                 text_color="#0B131B" if ativo else COR_TEXTO_SECUNDARIO,
                 font=fonte(10, "bold" if ativo else "normal"),
-                command=lambda a=nome_p: self._set_filtro(a),
+                command=lambda a=aba_key: self._set_filtro(a),
             ).pack(side="left", padx=2, pady=3)
 
-        # Ordenar
-        ord_box = ctk.CTkFrame(bar_f, fg_color="transparent")
-        ord_box.pack(side="right")
+        # Filtrar metas
+        if self.filtro_aba == "Em andamento":
+            metas_filtradas = [m for m in metas_reais if not m.get("concluida")]
+        elif self.filtro_aba == "Concluídas":
+            metas_filtradas = [m for m in metas_reais if m.get("concluida")]
+        else:
+            metas_filtradas = metas_reais
 
-        ctk.CTkLabel(ord_box, text="Ordenar por", font=fonte(10), text_color=COR_TEXTO_MUTED).pack(side="left", padx=(0, 6))
-        opt_ord = ctk.CTkOptionMenu(
-            ord_box,
-            values=["Progresso", "Valor", "Data limite", "Nome"],
-            width=110,
-            height=28,
-            fg_color=COR_CARD,
-            button_color=COR_CARD_INTERNO,
-            text_color=COR_TEXTO_PRINCIPAL,
-            font=fonte(10),
-        )
-        opt_ord.set("Progresso")
-        opt_ord.pack(side="left")
-
-        # Grid de Cards de Metas (2 colunas de cards)
+        # Grid de Cards de Metas
         grid_metas = ctk.CTkFrame(col, fg_color="transparent")
         grid_metas.pack(fill="x")
         grid_metas.grid_columnconfigure((0, 1), weight=1)
 
-        lista_metas = [
-            {
-                "emoji": "🏖️",
-                "titulo": "Viagem para o Nordeste",
-                "categoria": "Nordeste, Brasil",
-                "pct": 68,
-                "alvo": "R$ 5.000,00",
-                "guardado": "R$ 3.400,00",
-                "prazo": "6 meses",
-                "mensal": "R$ 300,00",
-                "conclusao": "Jan 2026",
-                "msg": "🌱 Faltam R$ 1.600,00 para sua meta!",
-                "atrasada": False,
-            },
-            {
-                "emoji": "🚗",
-                "titulo": "Carro Novo",
-                "categoria": "Meu primeiro carro",
-                "pct": 42,
-                "alvo": "R$ 60.000,00",
-                "guardado": "R$ 25.000,00",
-                "prazo": "18 meses",
-                "mensal": "R$ 1.500,00",
-                "conclusao": "Dez 2026",
-                "msg": "🌱 Faltam R$ 35.000,00 para sua meta.",
-                "atrasada": False,
-            },
-            {
-                "emoji": "🏠",
-                "titulo": "Entrada do Apê",
-                "categoria": "Imóvel próprio",
-                "pct": 25,
-                "alvo": "R$ 100.000,00",
-                "guardado": "R$ 25.000,00",
-                "prazo": "36 meses",
-                "mensal": "R$ 2.000,00",
-                "conclusao": "Jan 2028",
-                "msg": "🌱 Faltam R$ 75.000,00 para sua meta.",
-                "atrasada": False,
-            },
-            {
-                "emoji": "💻",
-                "titulo": "Notebook Profissional",
-                "categoria": "Trabalho e estudos",
-                "pct": 80,
-                "alvo": "R$ 8.000,00",
-                "guardado": "R$ 6.400,00",
-                "prazo": "4 meses",
-                "mensal": "R$ 400,00",
-                "conclusao": "Nov 2025",
-                "msg": "🚀 Faltam apenas R$ 1.600,00! Você está quase lá!",
-                "atrasada": False,
-            },
-        ]
+        if not metas_filtradas:
+            # Mensagem vazia
+            vazio = ctk.CTkFrame(grid_metas, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
+            vazio.grid(row=0, column=0, columnspan=2, pady=20, padx=4, sticky="ew")
+            ctk.CTkLabel(vazio, text="🎯", font=fonte(32)).pack(pady=(20, 4))
+            ctk.CTkLabel(vazio, text="Nenhuma meta cadastrada",
+                font=fonte(14, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack()
+            ctk.CTkLabel(vazio, text="Crie sua primeira meta no painel ao lado!",
+                font=fonte(11), text_color=COR_TEXTO_MUTED).pack(pady=(4, 20))
+        else:
+            emojis = ["🏖️", "🚗", "🏠", "💻", "🐷", "🊲", "🌍", "⭐", "📚", "🌿"]
+            for idx, m in enumerate(metas_filtradas):
+                r, c = idx // 2, idx % 2
+                pct = int(min(100, (float(m.get("valor_atual", 0)) / max(float(m.get("valor_alvo", 1)), 1)) * 100))
+                concluida = m.get("concluida", 0)
+                cor_prog = "#00D084" if not concluida else "#38BDF8"
+                falta = max(0, float(m.get("valor_alvo", 0)) - float(m.get("valor_atual", 0)))
+                msg = f"✅ Meta concluída!" if concluida else (f"🚀 Faltam apenas R$ {falta:,.2f}! Quase lá!" if pct >= 80 else f"🌱 Faltam R$ {falta:,.2f} para sua meta.")
+                dados = {
+                    "emoji": emojis[idx % len(emojis)],
+                    "titulo": m.get("descricao", "Meta"),
+                    "categoria": m.get("prazo") or "Meta pessoal",
+                    "pct": pct,
+                    "alvo": f"R$ {float(m.get('valor_alvo', 0)):,.2f}",
+                    "guardado": f"R$ {float(m.get('valor_atual', 0)):,.2f}",
+                    "prazo": m.get("prazo") or "A definir",
+                    "mensal": "A definir",
+                    "conclusao": m.get("data_limite") or "A definir",
+                    "msg": msg,
+                    "atrasada": False,
+                    "cor_prog": cor_prog,
+                    "meta_id": m["id"],
+                }
+                self._criar_card_meta(grid_metas, dados, r, c)
 
-        # Inserir os 4 cards no grid 2x2
-        for idx, m in enumerate(lista_metas):
-            r, c = idx // 2, idx % 2
-            self._criar_card_meta(grid_metas, m, r, c)
-
-        # Card 5 largo na linha inferior (Bicicleta Nova Atrasada)
-        card_atrasado = {
-            "emoji": "🚲",
-            "titulo": "Bicicleta Nova",
-            "categoria": "Saúde e bem-estar",
-            "pct": 50,
-            "alvo": "R$ 2.000,00",
-            "guardado": "R$ 1.000,00",
-            "prazo": "3 meses",
-            "mensal": "R$ 200,00",
-            "conclusao": "Out 2025",
-            "msg": "⚠️ Meta atrasada em 12 dias. Retome suas contribuições.",
-            "atrasada": True,
-        }
-        self._criar_card_meta_largo(col, card_atrasado)
 
     def _criar_card_meta(self, parent, m: dict, row: int, col: int):
+        meta_id = m.get("meta_id")
+        cor_prog = m.get("cor_prog", "#00D084")
         card = ctk.CTkFrame(parent, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
         card.grid(row=row, column=col, padx=4, pady=4, sticky="nsew")
 
@@ -283,7 +379,6 @@ class MetaView(ctk.CTkFrame):
         top_f = ctk.CTkFrame(card, fg_color="transparent")
         top_f.pack(fill="x", padx=12, pady=(12, 6))
 
-        # Box visual do emoji/foto
         img_box = ctk.CTkFrame(top_f, width=54, height=54, corner_radius=8, fg_color="#182A3A")
         img_box.pack(side="left", padx=(0, 10))
         img_box.pack_propagate(False)
@@ -292,31 +387,38 @@ class MetaView(ctk.CTkFrame):
         tit_f = ctk.CTkFrame(top_f, fg_color="transparent")
         tit_f.pack(side="left", fill="both", expand=True)
 
-        ctk.CTkLabel(tit_f, text=m["titulo"][:18], font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w")
-        ctk.CTkLabel(tit_f, text=m["categoria"], font=fonte(9), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w")
+        ctk.CTkLabel(tit_f, text=m["titulo"][:20], font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w")
+        ctk.CTkLabel(tit_f, text=m["categoria"][:22], font=fonte(9), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w")
 
-        ctk.CTkLabel(top_f, text="···", font=fonte(14, "bold"), text_color=COR_TEXTO_MUTED).pack(side="right")
+        # Botão de excluir meta (se tiver ID real)
+        if meta_id:
+            ctk.CTkButton(
+                top_f, text="×", width=22, height=22, corner_radius=11,
+                fg_color="transparent", hover_color="#2A141A",
+                text_color=COR_TEXTO_MUTED, font=fonte(12, "bold"),
+                command=lambda mid=meta_id: self._confirmar_excluir(mid),
+            ).pack(side="right")
+        else:
+            ctk.CTkLabel(top_f, text="···", font=fonte(14, "bold"), text_color=COR_TEXTO_MUTED).pack(side="right")
 
-        # Meio: Donut de Progresso e Valores
+        # Donut Canvas
         mid_f = ctk.CTkFrame(card, fg_color="transparent")
         mid_f.pack(fill="x", padx=12, pady=4)
 
-        # Donut Canvas
         c_prog = tk.Canvas(mid_f, width=50, height=50, bg=obter_cor(COR_CARD), highlightthickness=0)
         c_prog.pack(side="left", padx=(0, 10))
 
         c_prog.create_arc(5, 5, 45, 45, start=0, extent=359, outline="#162E35", width=5, style="arc")
         ext = int(m["pct"] * 3.6)
-        c_prog.create_arc(5, 5, 45, 45, start=90, extent=-ext, outline="#00D084", width=5, style="arc")
+        c_prog.create_arc(5, 5, 45, 45, start=90, extent=-ext, outline=cor_prog, width=5, style="arc")
         c_prog.create_text(25, 25, text=f"{m['pct']}%", fill="#FFFFFF", font=("Segoe UI", 8, "bold"))
 
         val_f = ctk.CTkFrame(mid_f, fg_color="transparent")
         val_f.pack(side="left", fill="x", expand=True)
 
         ctk.CTkLabel(val_f, text=f"{m['alvo']}  Valor alvo", font=fonte(9), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w")
-        ctk.CTkLabel(val_f, text=f"{m['guardado']}  Já guardado", font=fonte(10, "bold"), text_color="#00D084", anchor="w").pack(anchor="w")
+        ctk.CTkLabel(val_f, text=f"{m['guardado']}  Já guardado", font=fonte(10, "bold"), text_color=cor_prog, anchor="w").pack(anchor="w")
 
-        # Linha de detalhes: Prazo, Mensal, Conclusão
         det_f = ctk.CTkFrame(card, fg_color="transparent")
         det_f.pack(fill="x", padx=12, pady=4)
         det_f.grid_columnconfigure((0, 1, 2), weight=1)
@@ -325,15 +427,71 @@ class MetaView(ctk.CTkFrame):
         ctk.CTkLabel(det_f, text=f"💰 {m['mensal']}\nMensal", font=fonte(8), text_color=COR_TEXTO_MUTED, justify="center").grid(row=0, column=1)
         ctk.CTkLabel(det_f, text=f"🚩 {m['conclusao']}\nPrevisão", font=fonte(8), text_color=COR_TEXTO_MUTED, justify="center").grid(row=0, column=2)
 
-        # Barra de progresso teal
-        prog = ctk.CTkProgressBar(card, height=6, corner_radius=3, progress_color="#00D084", fg_color="#1C2F3F")
+        prog = ctk.CTkProgressBar(card, height=6, corner_radius=3, progress_color=cor_prog, fg_color="#1C2F3F")
         prog.set(m["pct"] / 100)
         prog.pack(fill="x", padx=12, pady=(6, 4))
 
-        # Badge de incentivo
-        badge = ctk.CTkFrame(card, fg_color="#0D2E2B", corner_radius=6)
+        badge_bg = "#0D2E2B" if cor_prog == "#00D084" else "#12253A"
+        badge = ctk.CTkFrame(card, fg_color=badge_bg, corner_radius=6)
         badge.pack(fill="x", padx=12, pady=(0, 10))
-        ctk.CTkLabel(badge, text=m["msg"], font=fonte(9), text_color="#00D084").pack(padx=8, pady=3)
+        ctk.CTkLabel(badge, text=m["msg"], font=fonte(9), text_color=cor_prog).pack(padx=8, pady=3)
+
+        # Botão de guardar valor (se houver meta_id real)
+        if meta_id:
+            ctk.CTkButton(
+                card, text="+ Guardar valor", height=28, corner_radius=6,
+                fg_color="#0D2E2B", hover_color="#134E48", text_color="#00D084",
+                font=fonte(9, "bold"),
+                command=lambda mid=meta_id, alvo=m["alvo"]: self._guardar_valor_dialog(mid),
+            ).pack(fill="x", padx=12, pady=(0, 10))
+
+    def _confirmar_excluir(self, meta_id: int):
+        try:
+            self.dao.excluir(meta_id)
+        except Exception:
+            pass
+        self._montar_tela()
+
+    def _guardar_valor_dialog(self, meta_id: int):
+        dialog = ctk.CTkToplevel(self.winfo_toplevel())
+        dialog.title("Guardar Valor")
+        dialog.geometry("360x180")
+        dialog.resizable(False, False)
+        dialog.attributes("-topmost", True)
+        dialog.grab_set()
+        dialog.configure(fg_color="#101C26")
+
+        ctk.CTkLabel(dialog, text="Quanto deseja guardar agora? (R$)",
+            font=fonte(12, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(pady=(20, 8))
+
+        entry = ctk.CTkEntry(dialog, placeholder_text="Ex: 250.00", height=38,
+            fg_color=COR_CARD_INTERNO, border_color=COR_BORDA, font=fonte(12))
+        entry.pack(fill="x", padx=30)
+
+        def confirmar():
+            try:
+                val = float(entry.get().replace(",", ".").strip())
+                if val > 0:
+                    resultado = self.dao.guardar_valor(meta_id, val)
+                    if resultado.get("atingiu_agora"):
+                        meta = self.dao.buscar_por_id(meta_id)
+                        dialog.destroy()
+                        self._exibir_celebracao(
+                            meta_id=meta_id,
+                            titulo=meta.get("descricao", "Meta"),
+                            valor=float(meta.get("valor_alvo", 0)),
+                        )
+                        self._montar_tela()
+                        return
+            except Exception:
+                pass
+            dialog.destroy()
+            self._montar_tela()
+
+        ctk.CTkButton(dialog, text="Confirmar", height=38,
+            fg_color="#00D084", hover_color="#00B875", text_color="#0B131B",
+            font=fonte(11, "bold"), command=confirmar).pack(pady=14, padx=30, fill="x")
+
 
     def _criar_card_meta_largo(self, parent, m: dict):
         card = ctk.CTkFrame(parent, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
@@ -488,13 +646,20 @@ class MetaView(ctk.CTkFrame):
             return
 
         data_lim = self.entry_data.get().strip() or None
-        nova = Meta(
-            titulo=desc,
+        prazo = self.combo_prazo.get() if hasattr(self, "combo_prazo") else None
+
+        self.dao.inserir(
+            descricao=desc,
             valor_alvo=alvo,
             valor_atual=atual,
+            prazo=prazo,
             data_limite=data_lim,
         )
-        self.dao.inserir(nova)
+        # Limpar campos
+        self.entry_desc.delete(0, "end")
+        self.entry_alvo.delete(0, "end")
+        self.entry_atual.delete(0, "end")
+        self.entry_data.delete(0, "end")
         self._montar_tela()
 
     def _build_card_projecao(self, parent):

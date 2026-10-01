@@ -174,7 +174,14 @@ class TerceiroView(ctk.CTkFrame):
         abas = ctk.CTkFrame(bar_f, fg_color=COR_CARD_INTERNO, corner_radius=8, height=32)
         abas.pack(side="left")
 
-        filtros = [("👥 Todos (12)", "Todos"), ("🚚 Fornecedores (5)", "Fornecedor"), ("👤 Clientes (4)", "Cliente"), ("👨‍👩‍👧 Familiares (3)", "Familiar")]
+        filtros = [
+            ("👥 Todos", "Todos"),
+            ("🚚 Fornecedores", "Fornecedor"),
+            ("👤 Clientes", "Cliente"),
+            ("👨‍👩‍👧 Familiares", "Familiar"),
+            ("👨‍💼 Funcionários", "Funcionário"),
+            ("🏢 Lugares", "Lugar"),
+        ]
         for rotulo, val in filtros:
             ativo = (val == self.filtro_tipo)
             ctk.CTkButton(
@@ -250,6 +257,8 @@ class TerceiroView(ctk.CTkFrame):
             ("LM", "#2E1528", "Laura Mendes", "Cliente - Consultoria", "Cliente", "#00D084", "#0D2E2B", "(31) 99666-8877", "laura.mendes@email.com", "● 19/09/2025", "#00D084"),
             ("BR", "#0D2E2B", "Petrobras", "Posto de Combustível", "Fornecedor", "#A855F7", "#1C142E", "0800 728 9001", "faleconosco@petrobras.com.br", "● 12/09/2025", "#F43F5E"),
             ("MO", "#291E10", "Maria Oliveira", "Mãe", "Familiar", "#F59E0B", "#291E10", "(31) 98888-7766", "maria.oliveira@email.com", "● 05/09/2025", "#F43F5E"),
+            ("👨‍💼", "#102F33", "Lucas Almeida", "Desenvolvedor Sênior", "Funcionário", "#00D084", "#0D2E2B", "(31) 99123-4567", "lucas@empresa.com", "● Ativo", "#00D084"),
+            ("🏢", "#0F263E", "Escritório BH", "Sede Comercial", "Lugar", "#38BDF8", "#122538", "(31) 3200-9000", "contato@sede.com", "● Ativo", "#00D084"),
         ]
 
         # Contatos reais do banco se existirem
@@ -361,16 +370,42 @@ class TerceiroView(ctk.CTkFrame):
         )
         b_o.pack(side="left")
 
-        # Círculo Foto do Contato
+        # Círculo Foto / Logo do Contato (Funcionário, Lugar, etc.)
+        self.logo_selecionado = getattr(self, "logo_selecionado", "📷")
         foto_f = ctk.CTkFrame(card, fg_color="transparent")
-        foto_f.pack(fill="x", padx=16, pady=(0, 10))
+        foto_f.pack(fill="x", padx=16, pady=(0, 8))
 
-        circulo = ctk.CTkFrame(foto_f, width=54, height=54, corner_radius=27, fg_color="#182A3A")
+        circulo = ctk.CTkButton(
+            foto_f,
+            text=self.logo_selecionado,
+            width=54,
+            height=54,
+            corner_radius=27,
+            fg_color="#182A3A",
+            hover_color="#24384D",
+            font=fonte(18),
+            command=self._selecionar_logo_ou_foto,
+        )
         circulo.pack(anchor="center")
-        circulo.pack_propagate(False)
-        ctk.CTkLabel(circulo, text="📷", font=fonte(16)).place(relx=0.5, rely=0.5, anchor="center")
+        self.btn_logo_avatar = circulo
 
-        ctk.CTkLabel(foto_f, text="Adicionar foto", font=fonte(9), text_color="#38BDF8").pack(anchor="center", pady=(4, 0))
+        ctk.CTkLabel(foto_f, text="Clique para alterar Logo / Foto", font=fonte(9), text_color="#38BDF8").pack(anchor="center", pady=(2, 0))
+
+        # Seletor rápido de Logos: Funcionário, Lugar, Loja, etc.
+        preset_row = ctk.CTkFrame(foto_f, fg_color="transparent")
+        preset_row.pack(anchor="center", pady=(4, 0))
+        for ic, lbl in [("👨‍💼", "Func."), ("🏢", "Lugar"), ("🏬", "Loja"), ("🚚", "Fornec."), ("📁", "Arquivo")]:
+            ctk.CTkButton(
+                preset_row,
+                text=ic,
+                width=28,
+                height=26,
+                corner_radius=6,
+                fg_color=COR_CARD_INTERNO,
+                hover_color="#1E3143",
+                font=fonte(11),
+                command=lambda i=ic: self._definir_preset_logo(i),
+            ).pack(side="left", padx=2)
 
         # Campo Nome ou Razão Social
         ctk.CTkLabel(card, text="Nome ou Razão Social *", font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", padx=16, pady=(0, 4))
@@ -385,18 +420,25 @@ class TerceiroView(ctk.CTkFrame):
         vinc_box = ctk.CTkFrame(card, fg_color=COR_CARD_INTERNO, corner_radius=8, height=36)
         vinc_box.pack(fill="x", padx=16, pady=(0, 10))
 
-        for v_nome, ic in [("Fornecedor", "🚚"), ("Cliente", "👤"), ("Familiar", "👨‍👩‍👧")]:
+        vinculos = [
+            ("Fornecedor", "🚚", "#3B2562"),
+            ("Cliente", "👤", "#0D2E2B"),
+            ("Familiar", "👨‍👩‍👧", "#291E10"),
+            ("Funcionário", "👨‍💼", "#102F33"),
+            ("Lugar", "🏢", "#0F263E"),
+        ]
+        for v_nome, ic, cor_ativo in vinculos:
             ativo = (v_nome == self.tipo_vinculo)
             ctk.CTkButton(
                 vinc_box,
                 text=f"{ic} {v_nome}",
                 height=28,
                 corner_radius=6,
-                fg_color="#3B2562" if (ativo and v_nome == "Fornecedor") else ("#0D2E2B" if (ativo and v_nome == "Cliente") else ("#291E10" if ativo else "transparent")),
+                fg_color=cor_ativo if ativo else "transparent",
                 text_color="#FFFFFF" if ativo else COR_TEXTO_MUTED,
-                font=fonte(9, "bold" if ativo else "normal"),
+                font=fonte(8, "bold" if ativo else "normal"),
                 command=lambda v=v_nome: self._set_vinculo(v),
-            ).pack(side="left", fill="both", expand=True, padx=2, pady=3)
+            ).pack(side="left", fill="both", expand=True, padx=1, pady=3)
 
         # Telefone
         ctk.CTkLabel(card, text="Telefone", font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", padx=16, pady=(0, 4))
@@ -453,6 +495,27 @@ class TerceiroView(ctk.CTkFrame):
     def _set_aba_form(self, a: str):
         self.aba_form = a
         self._montar_tela()
+
+
+    def _definir_preset_logo(self, icone: str):
+        if icone == "📁":
+            self._selecionar_logo_ou_foto()
+        else:
+            self.logo_selecionado = icone
+            if hasattr(self, "btn_logo_avatar"):
+                self.btn_logo_avatar.configure(text=icone)
+
+    def _selecionar_logo_ou_foto(self):
+        from tkinter import filedialog
+        caminho = filedialog.askopenfilename(
+            title="Selecionar Logo ou Foto",
+            filetypes=[("Imagens", "*.png *.jpg *.jpeg *.bmp *.ico")]
+        )
+        if caminho:
+            self.caminho_foto_logo = caminho
+            self.logo_selecionado = "🖼️"
+            if hasattr(self, "btn_logo_avatar"):
+                self.btn_logo_avatar.configure(text="🖼️")
 
     def _set_vinculo(self, v: str):
         self.tipo_vinculo = v

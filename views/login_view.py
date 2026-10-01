@@ -1,3 +1,4 @@
+import tkinter as tk
 import customtkinter as ctk
 from datetime import date
 from typing import Callable, Optional, Dict, Any
@@ -10,6 +11,7 @@ from views.tema import (
     COR_TAB_BG, COR_TAB_SELECIONADA, COR_TAB_SELECIONADA_HOVER,
     COR_TAB_TEXTO, COR_TEXTO_MUTED,
     fonte, fonte_titulo, fonte_subtitulo, fonte_corpo, fonte_pequena, fonte_hint,
+    obter_cor,
 )
 
 
@@ -27,45 +29,124 @@ class LoginView(ctk.CTkFrame):
         self.on_login_sucesso = on_login_sucesso
         self.dao = dao or UsuarioDAO()
 
-        # Centraliza o container na tela
-        self.grid_columnconfigure(0, weight=1)
+        # Layout em duas colunas: painel esquerdo (hero) + card direito (form)
+        self.grid_columnconfigure(0, weight=3)
+        self.grid_columnconfigure(1, weight=2)
         self.grid_rowconfigure(0, weight=1)
 
         self._build_interface()
 
     def _build_interface(self):
+        # ── PAINEL ESQUERDO (Hero com Canvas)
+        self._build_painel_hero()
+
+        # ── PAINEL DIREITO (Formulário)
+        self._build_painel_form()
+
+    def _build_painel_hero(self):
+        """Painel esquerdo com fundo animado, logo e taglines."""
+        hero = ctk.CTkFrame(
+            self,
+            fg_color="#091017",
+            corner_radius=0,
+        )
+        hero.grid(row=0, column=0, sticky="nsew")
+        hero.grid_columnconfigure(0, weight=1)
+        hero.grid_rowconfigure(0, weight=1)
+
+        # Canvas de fundo decorativo
+        canvas = tk.Canvas(hero, bg="#091017", highlightthickness=0)
+        canvas.grid(row=0, column=0, sticky="nsew")
+
+        def desenhar_fundo(e=None):
+            canvas.delete("all")
+            w = canvas.winfo_width()
+            h = canvas.winfo_height()
+            if w < 10 or h < 10:
+                return
+            # Círculos decorativos gradiente
+            for r, alpha, cor in [
+                (300, 0.08, "#00D084"),
+                (200, 0.12, "#38BDF8"),
+                (120, 0.16, "#00D084"),
+            ]:
+                canvas.create_oval(
+                    w // 2 - r, h // 2 - r,
+                    w // 2 + r, h // 2 + r,
+                    outline=cor, width=1,
+                )
+
+            # Grade de pontos
+            for ix in range(0, w, 40):
+                for iy in range(0, h, 40):
+                    canvas.create_oval(ix-1, iy-1, ix+1, iy+1, fill="#1A2D3C", outline="")
+
+            # Textos por cima
+            cy = h // 2
+            cx = w // 2
+            canvas.create_text(cx, cy - 80, text="📊", font=("Segoe UI", 52), fill="#00D084")
+            canvas.create_text(cx, cy - 10, text="Gerenciador", font=("Segoe UI", 26, "bold"), fill="#FFFFFF")
+            canvas.create_text(cx, cy + 26, text="de Finanças", font=("Segoe UI", 26, "bold"), fill="#00D084")
+            canvas.create_text(cx, cy + 70, text="Pessoais", font=("Segoe UI", 14), fill="#94A3B8")
+            canvas.create_text(cx, cy + 105,
+                text="Controle inteligente das suas finanças.",
+                font=("Segoe UI", 11), fill="#64748B")
+
+            # Badges de features
+            for i, (ic, txt) in enumerate([
+                ("🎯", "Metas financeiras"),
+                ("📈", "Relatórios mensais"),
+                ("🤖", "Assistente IA"),
+                ("🔮", "Simulador de cenários"),
+            ]):
+                by = cy + 160 + i * 36
+                canvas.create_rectangle(cx - 130, by - 14, cx + 130, by + 14,
+                    fill="#101D27", outline="#1E3143", width=1)
+                canvas.create_text(cx - 110, by, text=ic, font=("Segoe UI", 12), fill="#00D084")
+                canvas.create_text(cx + 10, by, text=txt, font=("Segoe UI", 11), fill="#94A3B8")
+
+        canvas.bind("<Configure>", desenhar_fundo)
+        canvas.after(100, desenhar_fundo)
+
+    def _build_painel_form(self):
+        """Painel direito com o formulário de login/cadastro."""
+        outer = ctk.CTkFrame(self, fg_color=("#F1F5F9", "#0B131B"), corner_radius=0)
+        outer.grid(row=0, column=1, sticky="nsew")
+        outer.grid_columnconfigure(0, weight=1)
+        outer.grid_rowconfigure(0, weight=1)
+
         # Card Central
         card = ctk.CTkFrame(
-            self,
-            width=460,
+            outer,
+            width=420,
             corner_radius=20,
             fg_color=COR_CARD,
             border_width=1,
             border_color=COR_BORDA,
         )
-        card.grid(row=0, column=0, padx=20, pady=20)
+        card.grid(row=0, column=0, padx=30, pady=30)
         card.grid_columnconfigure(0, weight=1)
 
-        # Cabeçalho / Logo — usando ícone de carteira em vez de diamante
+        # Ícone compacto no topo do form
         ctk.CTkLabel(
             card,
             text="📊",
-            font=fonte(40),
-        ).pack(pady=(25, 5))
+            font=fonte(32),
+        ).pack(pady=(20, 4))
 
         ctk.CTkLabel(
             card,
-            text="Gerenciador Financeiro",
-            font=fonte(22, "bold"),
+            text="Bem-vindo de volta!",
+            font=fonte(18, "bold"),
             text_color=COR_TEXTO_PRINCIPAL,
         ).pack()
 
         ctk.CTkLabel(
             card,
-            text="Controle inteligente de finanças pessoais",
+            text="Acesse sua conta ou crie uma nova",
             font=fonte_corpo(),
             text_color=COR_TEXTO_SECUNDARIO,
-        ).pack(pady=(2, 15))
+        ).pack(pady=(2, 12))
 
         # Abas: Entrar / Criar Conta
         self.tabview = ctk.CTkTabview(

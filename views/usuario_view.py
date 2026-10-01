@@ -228,8 +228,8 @@ class UsuarioView(ctk.CTkFrame):
         ctk.CTkLabel(topo, text="Dados do Perfil", font=fonte(13, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(side="left")
 
         btn_ed = ctk.CTkButton(
-            topo, text="✏  Editar", height=28, width=70, corner_radius=6,
-            fg_color=COR_CARD_INTERNO, hover_color="#1E3143", text_color="#38BDF8", font=fonte(10, "bold"),
+            topo, text="✐  Editar", height=28, width=70, corner_radius=6,
+            fg_color=COR_CARD_INTERNO, hover_color=("#CBD5E1", "#1E3143"), text_color="#38BDF8", font=fonte(10, "bold"),
             command=self._alternar_edicao,
         )
         btn_ed.pack(side="right")
@@ -241,7 +241,7 @@ class UsuarioView(ctk.CTkFrame):
         f_n = ctk.CTkFrame(card, fg_color=COR_CARD_INTERNO, corner_radius=8, border_width=1, border_color=COR_BORDA, height=36)
         f_n.pack(fill="x", padx=16, pady=(0, 10))
         f_n.pack_propagate(False)
-        ctk.CTkLabel(f_n, text="🪪", font=fonte(11)).pack(side="left", padx=8)
+        ctk.CTkLabel(f_n, text="🢪", font=fonte(11)).pack(side="left", padx=8)
         self.entry_nome = ctk.CTkEntry(f_n, fg_color="transparent", border_width=0, font=fonte(11), text_color=COR_TEXTO_PRINCIPAL)
         self.entry_nome.insert(0, self.usuario_atual.get("nome", "Usuário Demo"))
         self.entry_nome.pack(side="left", fill="both", expand=True)
@@ -255,6 +255,18 @@ class UsuarioView(ctk.CTkFrame):
         self.entry_email = ctk.CTkEntry(f_e, fg_color="transparent", border_width=0, font=fonte(11), text_color=COR_TEXTO_PRINCIPAL)
         self.entry_email.insert(0, self.usuario_atual.get("email", "demo@financeiro.com"))
         self.entry_email.pack(side="left", fill="both", expand=True)
+
+        # Renda Mensal (NOVO)
+        ctk.CTkLabel(card, text="Renda Mensal (R$)", font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", padx=16, pady=(0, 4))
+        f_r = ctk.CTkFrame(card, fg_color=COR_CARD_INTERNO, corner_radius=8, border_width=1, border_color=COR_BORDA, height=36)
+        f_r.pack(fill="x", padx=16, pady=(0, 10))
+        f_r.pack_propagate(False)
+        ctk.CTkLabel(f_r, text="💰", font=fonte(11)).pack(side="left", padx=8)
+        self.entry_renda = ctk.CTkEntry(f_r, placeholder_text="Ex: 5000.00", fg_color="transparent", border_width=0, font=fonte(11), text_color=COR_TEXTO_PRINCIPAL)
+        renda_atual = self.usuario_atual.get("renda_mensal", 0) or 0
+        if renda_atual:
+            self.entry_renda.insert(0, f"{float(renda_atual):,.2f}")
+        self.entry_renda.pack(side="left", fill="both", expand=True)
 
         # Tipo de Perfil
         ctk.CTkLabel(card, text="Tipo de Perfil", font=fonte(10, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", padx=16, pady=(0, 4))
@@ -446,16 +458,26 @@ class UsuarioView(ctk.CTkFrame):
         em = self.entry_email.get().strip()
         tp = "PF" if "PF" in self.combo_perfil.get() else "PJ"
 
+        # Renda mensal
+        renda = 0.0
+        try:
+            renda_str = self.entry_renda.get().replace("R$", "").replace(".", "").replace(",", ".").strip()
+            renda = float(renda_str) if renda_str else 0.0
+        except Exception:
+            pass
+
         self.usuario_atual["nome"] = nom
         self.usuario_atual["email"] = em
         self.usuario_atual["tipo_perfil"] = tp
+        self.usuario_atual["renda_mensal"] = renda
 
         try:
             self.dao.atualizar(
-                id_usuario=self.usuario_atual.get("id", 1),
+                usuario_id=self.usuario_atual.get("id", 1),
                 nome=nom,
                 email=em,
                 tipo_perfil=tp,
+                renda_mensal=renda,
             )
         except Exception:
             pass
