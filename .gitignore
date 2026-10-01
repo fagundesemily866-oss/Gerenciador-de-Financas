@@ -1,13 +1,26 @@
+# Ambientes virtuais
 .venv/
 venv/
 env/
 .env
+
+# IDEs e editores
 .vscode/
+.idea/
+
+# Cache Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.pytest_cache/
 
+# Banco de dados e dados locais
+data/*.db
+data/*.sqlite
+data/*.sqlite3
 
-# Banco de dados (gerado automaticamente em tempo de execução)
-data/finance.db
-
-
+# Logs e arquivos temporários
+*.log
+*.tmp
+patch_*.py
+test_*.py.bak
