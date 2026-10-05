@@ -4,98 +4,157 @@ Sistema moderno de gestão financeira pessoal desenvolvido em **Python** com **C
 
 ---
 
-## ✨ Funcionalidades Principais
+##  Funcionalidades Principais
 
 O sistema conta com 9 módulos completos acessíveis pela barra lateral retrátil:
 
-1. **📊 Dashboard & Saúde Financeira:**
-   - 6 cards de métricas (Saldo Atual, Receitas, Despesas, Economizado, Limite Mensal, Disponível para Gastar).
-   - Indicador de Score de Saúde Financeira com checklist de boas práticas.
-   - Gráfico donut de gastos por categoria e gráfico vetorial de fluxo de caixa semestral.
-   - **Planejador Rápido de Economia:** controle interativo de economia com salto fixo de **5% em 5%**.
 
-2. **🤖 Assistente IA de Finanças:**
-   - Chat interativo com sugestões inteligentes e respostas analíticas com barras visuais.
-   - Ações rápidas de consulta com navegação direta para os módulos.
-   - Painel lateral com resumo do mês, alertas e recomendações preditivas.
+### 📊 Dashboard
+- Visualização do saldo atual.
+- Receitas e despesas.
+- Valores economizados.
+- Limites e valores disponíveis.
+- Gráfico de **Saldo & Fluxo**.
+- Visualização da evolução financeira.
+- Indicadores de saúde financeira.
 
-3. **💰 Lançamentos:**
-   - Registro de receitas e despesas com categorização e vínculo a terceiros.
-   - Filtros por tipo (Todos, Receitas, Despesas) e busca textual.
-   - **Exclusão de lançamentos:** botão interativo de lixeira `🗑️` com confirmação.
+### 🤖 Assistente IA
+- Assistente financeiro integrado ao **Gemini**.
+- Análise dos dados financeiros.
+- Recomendações e alertas.
+- Consultas rápidas sobre gastos e finanças.
 
-4. **🎯 Metas Financeiras:**
-   - Definição de objetivos com valor alvo, valor atual, prazo e previsão.
-   - Aporte direto nas metas com cálculo de evolução percentual.
-   - **Celebração Animada:** ao atingir 100% da meta, dispara animação com foguetes e confetes explodindo no centro da tela.
-   - **Pop-up de Decisão:** opções para *Aumentar a Meta*, *Recuar a Meta* ou *Apenas Manter*.
+### 💰 Lançamentos
+- Cadastro de receitas e despesas.
+- Categorias e terceiros.
+- Status do lançamento.
+- Data de vencimento e pagamento.
+- Comprovante.
+- Filtros por tipo.
+- Busca por descrição.
+- Exclusão de lançamentos com confirmação.
 
-5. **🔮 Simulador de Cenários:**
-   - Laboratório preditivo de impacto financeiro (3 meses a 5 anos).
-   - Sliders com **método arrastar em tempo real** para corte de despesas (passo fixo de 5%), renda extra e aportes.
-   - Comparativo dinâmico de 3 cenários: *Otimista*, *Planejado* e *Pessimista*.
+### 🎯 Metas Financeiras
+- Criação de metas de reserva.
+- Valor atual e valor objetivo.
+- Prazo da meta.
+- Aportes.
+- Acompanhamento do percentual de progresso.
+- Conclusão automática da meta.
+- Celebração visual ao atingir 100%.
+- Opções para aumentar, reduzir ou manter a meta.
 
-6. **📄 Relatório Mensal:**
-   - Resumo executivo com balanço e comparativo com o mês anterior.
-   - Gráficos de barras duplas de evolução semestral de receitas e despesas.
-   - **Seção de Metas no Relatório:** frases amigáveis e claras indicando quanto foi guardado para cada meta no mês.
-   - Exportação do relatório consolidado em arquivo.
+### 🔮 Simulador
+- Simulação de diferentes cenários financeiros.
+- Cenários **Otimista, Planejado e Pessimista**.
+- Simulação de corte de despesas.
+- Renda extra.
+- Aportes.
+- Períodos de 3 meses a 5 anos.
 
-7. **🤝 Terceiros & Contatos:**
-   - Gestão de fornecedores, clientes, familiares, **funcionários** e **lugares/estabelecimentos**.
-   - Seletor de logos pré-definidos (👨‍💼 Func., 🏢 Lugar, 🏬 Loja, 🚚 Fornecedor) ou upload de imagem.
-   - Exclusão e edição de contatos com confirmação.
+### 📄 Relatório
+- Resumo financeiro mensal.
+- Comparação de receitas e despesas.
+- Evolução financeira.
+- Gráficos.
+- Informações sobre metas.
+- Exportação do relatório.
 
-8. **🏷️ Categorias:**
-   - Limites orçamentários por categoria de receita e despesa.
-   - Indicadores de uso do orçamento com barra de progresso.
-   - Exclusão e cadastro de novas categorias.
+### 🤝 Terceiros
+- Cadastro de clientes, fornecedores, familiares, funcionários e estabelecimentos.
+- Relação com o usuário.
+- Foto ou imagem personalizada.
+- Logos pré-definidos.
+- Edição e exclusão de terceiros.
 
-9. **👤 Meu Perfil & Preferências:**
-   - Gestão de dados pessoais e cadastro de **Renda Mensal (quanto ganha)**.
-   - Alternador de tema (**Modo Escuro / Modo Claro**) com reconstrução dinâmica de contraste.
-   - Segurança e alteração de senha.
+### 🏷️ Categorias
+- Cadastro de categorias.
+- Categorias de receita e despesa.
+- Definição de limite de orçamento.
+- Indicador de utilização do limite.
+- Edição e exclusão.
+
+### 👤 Meu Perfil
+- Visualização e edição dos dados do usuário.
+- E-mail e senha.
+- Cadastro de renda mensal.
+- Foto de perfil.
+- Alteração de senha.
+- Perfil **Pessoal ou PJ**.
+- Tema claro e escuro.
+
+### ❤️ Saúde Financeira
+- Score financeiro.
+- Plano de ação personalizado.
+- Acompanhamento dos gastos.
+- Indicadores de limite e orçamento.
 
 ---
 
 ## 🏗️ Arquitetura do Projeto
 
-```text
-controle_financeiro/
-├── main.py                     # Ponto de entrada e gerenciador de janelas
-├── requirements.txt            # Dependências do projeto
-├── models/                     # Entidades e conexão SQLite
-│   ├── database.py             # Schema, migrações e conexão SQLite
-│   ├── lancamento.py           # Modelo de Transação/Lançamento
-│   ├── meta.py                 # Modelo de Meta
-│   ├── categoria.py            # Modelo de Categoria
-│   ├── terceiro.py             # Modelo de Terceiro
-│   └── usuario.py              # Modelo de Usuário
-├── dao/                        # Data Access Objects (persistência SQLite)
+```
+text
+Gerenciador-de-Financas/
+│
+├── main.py
+├── requirements.txt
+├── .env
+├── .gitignore
+│
+├── assets/
+├── data/
+│
+├── controllers/
+│   ├── categoria_controller.py
+│   ├── inteligencia_financeira_controller.py
+│   ├── lancamento_controller.py
+│   ├── meta_controller.py
+│   ├── saude_financeira_controller.py
+│   ├── terceiro_controller.py
+│   └── usuario_controller.py
+│
+├── dao/
+│   ├── categoria_dao.py
 │   ├── lancamento_dao.py
 │   ├── meta_dao.py
-│   ├── categoria_dao.py
+│   ├── saude_financeira_dao.py
+│   ├── simulacao_dao.py
 │   ├── terceiro_dao.py
-│   ├── usuario_dao.py
-│   └── simulacao_dao.py
-├── controllers/                # Controladores de regras de negócio
-├── services/                   # Serviços auxiliares e integração de IA
-│   └── ai_service.py
-├── views/                      # Camada de Apresentação (CustomTkinter)
-│   ├── tema.py                 # Paleta de cores (Dark/Light) e tipografia
-│   ├── menu_view.py            # Navegação principal e sidebar retrátil
-│   ├── login_view.py           # Tela de autenticação e boas-vindas
-│   ├── saude_financeira_view.py
+│   └── usuario_dao.py
+│
+├── models/
+│   ├── database.py
+│   ├── categoria.py
+│   ├── lancamento.py
+│   ├── meta.py
+│   ├── saude_financeira.py
+│   ├── simulacao.py
+│   ├── terceiro.py
+│   └── usuario.py
+│
+├── services/
+│   ├── ai_service.py
+│   └── seguranca.py
+│
+├── views/
 │   ├── assistente_ia_view.py
-│   ├── lancamento_view.py
-│   ├── meta_view.py
-│   ├── simulador_view.py
-│   ├── relatorio_view.py
-│   ├── terceiro_view.py
 │   ├── categoria_view.py
-│   ├── usuario_view.py
-│   └── celebracao_view.py      # Modal com animação de foguetes e confetes
-└── tests/                      # Suíte de testes automatizados
+│   ├── celebracao_view.py
+│   ├── grafico_evolucao.py
+│   ├── lancamento_view.py
+│   ├── login_view.py
+│   ├── menu_view.py
+│   ├── meta_view.py
+│   ├── notificacao_toast.py
+│   ├── relatorio_view.py
+│   ├── saude_financeira_view.py
+│   ├── simulador_view.py
+│   ├── tema.py
+│   ├── terceiro_view.py
+│   └── usuario_view.py
+│
+└── tests/
 ```
 
 ---
@@ -109,7 +168,10 @@ controle_financeiro/
 ```bash
 pip install -r requirements.txt
 ```
-*(ou manualmente: `pip install customtkinter pillow python-dotenv`)*
+### Ou manualmente:
+```bash
+pip install customtkinter pillow python-dotenv google-genai
+```
 
 ### 2. Iniciar a Aplicação
 ```bash
@@ -125,3 +187,85 @@ O projeto possui suíte de testes unitários e de integração cobrindo os DAOs,
 ```bash
 python -m unittest discover tests
 ```
+---
+
+## 🗃️ Modelo de Dados
+
+O banco possui as seguintes entidades principais:
+
+- Usuario — dados do usuário, perfil, renda e foto.
+- Categoria — categorias de receitas e despesas e seus limites.
+- Lancamento — registros financeiros.
+- Terceiro — clientes, fornecedores, familiares e outros contatos.
+- Meta_reserva — metas e reservas financeiras.
+- Saude_financeira — score e plano de ação financeiro.
+
+*O relacionamento entre essas entidades foi desenvolvido no BRModelo.*
+
+O limite de orçamento é armazenado diretamente na entidade Categoria.
+
+---
+
+## 🛠️ Tecnologias
+
+**Tecnologia	Utilização**
+- Python	Linguagem principal
+- CustomTkinter	Interface gráfica
+- SQLite	Banco de dados
+- Pillow	Imagens e fotos de perfil
+- Google Gemini	Assistente IA
+- python-dotenv	Variáveis de ambiente
+- unittest	Testes automatizados
+
+*MVC + DAO	Arquitetura do sistema*
+
+---
+### Contexto acadêmico
+
+*O projeto nasceu no PISM (plataforma apresentada pelo professor para iniciar o projeto a partir das ideias) e evoluiu durante o desenvolvimento.*
+
+**Problema.**
+- Muita gente não sabe para onde o dinheiro vai no fim do mês: os gastos ficam espalhados, não há um limite visível e só se percebe o estouro depois que ele aconteceu.
+
+**Objetivo.**
+- Oferecer um lugar único e simples para registrar receitas e despesas, encontrar os maiores gastos e acompanhar, em tempo real, o quanto do orçamento do mês já foi consumido.
+
+---
+## 👤 Personas
+
+**Persona**      **Perfil**                          **Oque precisa**
+
+- Helena, 21	  Empresária	         Separar as finanças do negócio e acompanhar o caixa.
+
+- Vanessa, 35	  Dona de casa	         Controlar as despesas da casa dentro de um limite.
+
+- Carlos, 42	  Autônomo	            Registrar receitas irregulares e ver quanto sobra.
+
+- Ronaldo, 27	  Jovem profissional	   Criar reserva e entender para onde vai o salário
+
+---
+## Épicos do PISM
+
+**Gerenciamento de finanças:** cadastrar receitas e despesas.
+**Filtro de gastos:** filtrar por valor mínimo e período e identificar os maiores gastos.
+**Saúde financeira:** barra atualizada a cada gasto, limite mensal, mudança de cor ao atingir o limite e aviso quando não há limite definido.
+
+---
+
+*A coluna Status reflete o estado do código em outubro/2026. Atualize-a antes da entrega.*
+
+**O menu lateral tem 9 módulos: Dashboard, Assistente IA, Lançamentos, Metas, Simulador, Relatório, Terceiros, Categorias e Perfil. Os demais arquivos de views/ são telas de apoio (login, menu, tema, toast, celebração e gráfico)**
+
+## O que o sistema não faz
+
+- Não tem servidor próprio, nuvem nem sincronização entre dispositivos. Todos os dados ficam no computador do usuário.
+
+- Não tem contas online nem uso simultâneo por várias pessoas.
+
+- Não faz integração bancária (importar extrato, Open Finance etc.).
+
+- Não tem módulo fiscal (impostos, notas fiscais, declaração).
+
+*O único recurso que usa internet é o Assistente IA, que é opcional e usa a API do Gemini (Google). Sem chave configurada, ou sem conexão, o restante do sistema funciona normalmente. Ao usar o assistente, o texto da conversa é enviado ao Google: não digite dados pessoais sensíveis.*
+
+---
