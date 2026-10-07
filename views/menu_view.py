@@ -216,9 +216,7 @@ class MenuView(ctk.CTkFrame):
 
     def _posicionar_sidebar(self):
         """A sidebar é posicionada com place(): x negativo a faz 'sair' pela borda esquerda."""
-        # No CustomTkinter a largura vai no configure(); o place() não aceita width/height
-        self.sidebar.configure(width=self._largura_sidebar())
-        self.sidebar.place(x=self._sidebar_x, y=0, relheight=1)
+        self.sidebar.place(x=self._sidebar_x, y=0, relheight=1, width=self._largura_sidebar())
         self.sidebar.lift()
 
     def _reservar_espaco_sidebar(self, largura: int):
@@ -866,4 +864,4 @@ if __name__ == "__main__":
         fill="both"
     )
 
-    app.mainloop()
+    app.mainloop()
