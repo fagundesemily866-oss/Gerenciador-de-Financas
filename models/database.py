@@ -24,6 +24,19 @@ class Database:
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
 
+    @staticmethod
+    def versao_dados(db_path: str = "data/finance.db") -> Optional[tuple]:
+        """
+        Identificador barato do "estado" do arquivo do banco (mtime + tamanho).
+        Muda a cada commit; permite às telas saberem se precisam recarregar os dados
+        sem consultar o banco. Retorna None se o arquivo não puder ser lido.
+        """
+        try:
+            info = os.stat(db_path)
+            return (info.st_mtime_ns, info.st_size)
+        except OSError:
+            return None
+
     def get_connection(self) -> sqlite3.Connection:
         """
         Retorna a conexão ativa com o banco de dados.
@@ -108,8 +121,79 @@ class Database:
                 data_criacao     TEXT    NOT NULL,
                 FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS meta_aportes (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                meta_id     INTEGER NOT NULL,
+                valor       REAL    NOT NULL,
+                data        TEXT    NOT NULL,
+                FOREIGN KEY (meta_id) REFERENCES metas (id) ON DELETE CASCADE
+            );
             """
         )
+        connection.commit()
+        self._apply_migrations(connection)
+
+    def _apply_migrations(self, connection: sqlite3.Connection) -> None:
+        """Aplica alterações incrementais nas tabelas existentes preservando os dados."""
+        # 1. Tabela usuarios: foto_perfil e renda_mensal
+        cursor = connection.execute("PRAGMA table_info(usuarios)")
+        colunas_usuarios = [row["name"] for row in cursor.fetchall()]
+        if "foto_perfil" not in colunas_usuarios:
+            connection.execute("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT")
+        if "renda_mensal" not in colunas_usuarios:
+            connection.execute("ALTER TABLE usuarios ADD COLUMN renda_mensal REAL DEFAULT 0.0")
+
+        # 2. Tabela terceiros: foto_perfil
+        cursor = connection.execute("PRAGMA table_info(terceiros)")
+        colunas_terceiros = [row["name"] for row in cursor.fetchall()]
+        if "foto_perfil" not in colunas_terceiros:
+            connection.execute("ALTER TABLE terceiros ADD COLUMN foto_perfil TEXT")
+
+        # 3. Tabela metas: concluida, data_conclusao, celebracao_exibida
+        cursor = connection.execute("PRAGMA table_info(metas)")
+        colunas_metas = [row["name"] for row in cursor.fetchall()]
+        if "concluida" not in colunas_metas:
+            connection.execute("ALTER TABLE metas ADD COLUMN concluida INTEGER DEFAULT 0")
+        if "data_conclusao" not in colunas_metas:
+            connection.execute("ALTER TABLE metas ADD COLUMN data_conclusao TEXT")
+        if "celebracao_exibida" not in colunas_metas:
+            connection.execute("ALTER TABLE metas ADD COLUMN celebracao_exibida INTEGER DEFAULT 0")
+
+        # 4. Tabela usuarios: modo_demo (conta criada com "finanças aleatórias")
+        if "modo_demo" not in colunas_usuarios:
+            connection.execute("ALTER TABLE usuarios ADD COLUMN modo_demo INTEGER DEFAULT 0")
+
+        # 5. Tabela transactions: dono do lançamento, status e terceiro (opcionais)
+        cursor = connection.execute("PRAGMA table_info(transactions)")
+        colunas_transactions = [row["name"] for row in cursor.fetchall()]
+        if "usuario_id" not in colunas_transactions:
+            connection.execute("ALTER TABLE transactions ADD COLUMN usuario_id INTEGER REFERENCES usuarios (id) ON DELETE CASCADE")
+        if "status" not in colunas_transactions:
+            connection.execute("ALTER TABLE transactions ADD COLUMN status TEXT")
+        if "terceiro_id" not in colunas_transactions:
+            connection.execute("ALTER TABLE transactions ADD COLUMN terceiro_id INTEGER REFERENCES terceiros (id) ON DELETE SET NULL")
+
+        connection.commit()
+        self._migrar_dados_legados(connection)
+
+    def _migrar_dados_legados(self, connection: sqlite3.Connection) -> None:
+        """
+        Até esta versão os dados financeiros eram globais (sem dono). Uma única vez
+        (controlado por PRAGMA user_version) atribui os registros órfãos ao usuário
+        mais antigo, para que contas novas comecem realmente do zero.
+        """
+        versao = connection.execute("PRAGMA user_version").fetchone()[0]
+        if versao >= 1:
+            return
+        primeiro = connection.execute("SELECT MIN(id) AS id FROM usuarios").fetchone()["id"]
+        if primeiro is not None:
+            for tabela in ("transactions", "categorias", "metas", "terceiros", "simulacoes"):
+                connection.execute(
+                    f"UPDATE {tabela} SET usuario_id = ? WHERE usuario_id IS NULL",
+                    (primeiro,),
+                )
+            connection.commit()
+        connection.execute("PRAGMA user_version = 1")
         connection.commit()
 
     def close(self) -> None:

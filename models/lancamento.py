@@ -158,4 +158,4 @@ class Lancamento:
             f"status='{self._status}', data_vencimento={self._data_vencimento}, "
             f"data_pagamento={self._data_pagamento}, comprovante_url='{self._comprovante_url}', "
             f"data_criacao={self._data_criacao})"
-        )
+        )

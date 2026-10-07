@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 
 from models.database import Database
+from services.sessao import resolver_usuario
 from models.simulacao import Simulacao
 
 
@@ -27,6 +28,7 @@ class SimulacaoDAO:
         usuario_id: Optional[int] = None,
     ) -> int:
         """Insere uma nova simulação salva e retorna o ID gerado."""
+        usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         params_json = json.dumps(parametros or {}, ensure_ascii=False)
         res_json = json.dumps(resultados or {}, ensure_ascii=False)
@@ -76,6 +78,7 @@ class SimulacaoDAO:
 
     def listar_todas(self, usuario_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """Retorna todas as simulações cadastradas, ordenadas pela mais recente."""
+        usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(

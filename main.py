@@ -21,6 +21,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from models.database import Database
+from services.sessao import Sessao
+from views.tema import COR_FUNDO_PRINCIPAL
 from views.login_view import LoginView
 from views.menu_view import MenuView
 
@@ -42,6 +44,8 @@ class AppManager:
 
     def mostrar_login(self):
         """Exibe a tela de Login."""
+        # Encerra a sessão: nenhum dado de usuário fica acessível sem login
+        Sessao.limpar()
         if self.tela_atual is not None:
             self.tela_atual.destroy()
 
@@ -53,6 +57,9 @@ class AppManager:
 
     def mostrar_menu(self, usuario_logado: dict):
         """Exibe a tela principal após login bem-sucedido."""
+        # Define o usuário logado ANTES de criar as telas: DAOs e views passam a
+        # enxergar apenas os dados dele (ver services/sessao.py).
+        Sessao.definir(usuario_logado["id"])
         if self.tela_atual is not None:
             self.tela_atual.destroy()
 
@@ -79,8 +86,8 @@ def main() -> None:
     # ------------------------------------------------------------------
     app = ctk.CTk()
     app.title("Gerenciador de Finanças Pessoais")
-    app.geometry("1100x700")
-    app.minsize(950, 650)
+    app.geometry("1280x800")
+    app.minsize(1050, 680)
 
     # ------------------------------------------------------------------
     # 2.1. Define o ícone personalizado da janela
@@ -94,9 +101,9 @@ def main() -> None:
             pass  # Fallback silencioso se o SO não suportar
 
     # ------------------------------------------------------------------
-    # 2.2. Configura a cor de fundo da janela principal (verde escuro)
+    # 2.2. Configura a cor de fundo da janela principal
     # ------------------------------------------------------------------
-    app.configure(fg_color="#0B1D1F")
+    app.configure(fg_color="#0B131B")
 
     # ------------------------------------------------------------------
     # 3. Inicia o gerenciador de telas (Login → Menu)
@@ -107,4 +114,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main()

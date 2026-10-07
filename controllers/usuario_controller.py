@@ -20,4 +20,4 @@ class UsuarioController:
         self.usuario.senha_hash = nova_senha_hash
 
     def eh_pessoa_juridica(self):
-        return self.usuario.tipo_perfil == "PJ"
+        return self.usuario.tipo_perfil == "PJ"

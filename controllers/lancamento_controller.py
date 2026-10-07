@@ -31,4 +31,4 @@ class LancamentoController:
         self.lancamento.data_pagamento = data_pagamento
 
     def adicionar_comprovante(self, comprovante_url):
-        self.lancamento.comprovante_url = comprovante_url
+        self.lancamento.comprovante_url = comprovante_url

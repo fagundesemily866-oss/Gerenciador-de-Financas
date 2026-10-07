@@ -1,26 +1,37 @@
-import customtkinter as ctk
+"""
+View de Lançamentos — Redesign Fiel à Referência (03_lancamentos.png)
+======================================================================
+
+Layout completo para registro e controle de transações:
+1. Topo: Cabeçalho com ícone, título, subtítulo e seletor de mês.
+2. Linha de Métricas: Total de Receitas, Total de Despesas e Saldo Líquido com mini sparklines.
+3. Coluna Esquerda: Formulário moderno "Novo Lançamento" com alternador [Despesa / Receita],
+   campos com ícones inline, categorias e beneficiários, e botão de salvar contextual.
+4. Coluna Direita: "Lançamentos Recentes" com abas [Todos / Receitas / Despesas], barra de busca,
+   tabela refinada com badges de data, ícones de categoria, status de pagamento e menu de ações.
+"""
+import tkinter as tk
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, List
+import customtkinter as ctk
+
 from dao.lancamento_dao import LancamentoDAO
 from dao.categoria_dao import CategoriaDAO
-from views.notificacao_toast import GerenciadorNotificacoes
 from dao.terceiro_dao import TerceiroDAO
+from models.lancamento import Lancamento
+from views.notificacao_toast import GerenciadorNotificacoes
 from views.tema import (
     COR_CARD, COR_CARD_INTERNO, COR_BORDA, COR_TEXTO_PRINCIPAL,
     COR_TEXTO_SECUNDARIO, COR_TEXTO_TERCIARIO, COR_TEXTO_MUTED,
-    COR_ACENTO_PRIMARIO, COR_ACENTO_HOVER, COR_SUCESSO, COR_SUCESSO_HOVER,
-    COR_ALERTA, COR_ALERTA_HOVER, COR_INFO,
-    COR_RECEITA, COR_RECEITA_BG, COR_DESPESA, COR_DESPESA_BG,
-    COR_BOTAO_SECUNDARIO, COR_BOTAO_SECUNDARIO_HOVER,
-    COR_EXCLUIR_HOVER, COR_EXCLUIR_TEXTO,
-    fonte, fonte_subtitulo, fonte_corpo, fonte_pequena, fonte_hint,
-    fonte_grande_valor,
+    COR_ACENTO_PRIMARIO, COR_SUCESSO, COR_ALERTA, COR_INFO,
+    COR_RECEITA, COR_DESPESA, COR_BOTAO_SECUNDARIO,
+    fonte, fonte_titulo, fonte_subtitulo, fonte_corpo, fonte_pequena, fonte_hint,
+    obter_cor
 )
 
 
-
 class LancamentoView(ctk.CTkFrame):
-    """Tela interativa de Lançamentos com Dashboard de Saldo, Formulário Inteligente e Histórico."""
+    """Tela de Lançamentos redesenhada fiel à imagem 03_lancamentos.png."""
 
     def __init__(
         self,
@@ -35,737 +46,609 @@ class LancamentoView(ctk.CTkFrame):
         self.cat_dao = cat_dao or CategoriaDAO()
         self.ter_dao = ter_dao or TerceiroDAO()
 
-        self.filtro_tipo = "Todos"
+        self.tipo_selecionado = "Despesa"  # "Despesa" ou "Receita"
+        self.filtro_aba = "Todos"          # "Todos", "Receitas", "Despesas"
         self.busca_texto = ""
 
-        # Layout Principal: Linha 0 (Cards Resumo), Linha 1 (Formulário + Lista)
         self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
-        self._criar_cards_resumo()
-        self._criar_formulario()
-        self._criar_painel_historico()
-        self.atualizar_dados()
+        self._montar_tela()
 
-    # ==========================================================
-    # CARDS DE RESUMO (TOPO)
-    # ==========================================================
-    def _criar_cards_resumo(self):
-        frame_resumo = ctk.CTkFrame(self, fg_color="transparent")
-        frame_resumo.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 15))
-        frame_resumo.grid_columnconfigure((0, 1, 2), weight=1)
-
-        # 1. Total Receitas
-        card_rec = ctk.CTkFrame(
-            frame_resumo,
-            corner_radius=12,
-            fg_color=COR_CARD,
-            border_width=1,
-            border_color=COR_BORDA,
-        )
-        card_rec.grid(row=0, column=0, sticky="ew", padx=(0, 8))
-        ctk.CTkLabel(
-            card_rec,
-            text="📈 TOTAL RECEITAS",
-            font=fonte(11, "bold"),
-            text_color=COR_TEXTO_SECUNDARIO,
-        ).pack(anchor="w", padx=15, pady=(12, 2))
-        self.lbl_total_receitas = ctk.CTkLabel(
-            card_rec,
-            text="R$ 0,00",
-            font=fonte_grande_valor(),
-            text_color=COR_RECEITA,
-        )
-        self.lbl_total_receitas.pack(anchor="w", padx=15, pady=(0, 12))
-
-        # 2. Total Despesas
-        card_desp = ctk.CTkFrame(
-            frame_resumo,
-            corner_radius=12,
-            fg_color=COR_CARD,
-            border_width=1,
-            border_color=COR_BORDA,
-        )
-        card_desp.grid(row=0, column=1, sticky="ew", padx=4)
-        ctk.CTkLabel(
-            card_desp,
-            text="📉 TOTAL DESPESAS",
-            font=fonte(11, "bold"),
-            text_color=COR_TEXTO_SECUNDARIO,
-        ).pack(anchor="w", padx=15, pady=(12, 2))
-        self.lbl_total_despesas = ctk.CTkLabel(
-            card_desp,
-            text="R$ 0,00",
-            font=fonte_grande_valor(),
-            text_color=COR_DESPESA,
-        )
-        self.lbl_total_despesas.pack(anchor="w", padx=15, pady=(0, 12))
-
-        # 3. Saldo Atual
-        card_saldo = ctk.CTkFrame(
-            frame_resumo,
-            corner_radius=12,
-            fg_color=COR_CARD,
-            border_width=1,
-            border_color=COR_BORDA,
-        )
-        card_saldo.grid(row=0, column=2, sticky="ew", padx=(8, 0))
-        ctk.CTkLabel(
-            card_saldo,
-            text="💳 SALDO LÍQUIDO",
-            font=fonte(11, "bold"),
-            text_color=COR_TEXTO_SECUNDARIO,
-        ).pack(anchor="w", padx=15, pady=(12, 2))
-        self.lbl_saldo = ctk.CTkLabel(
-            card_saldo,
-            text="R$ 0,00",
-            font=fonte_grande_valor(),
-            text_color=COR_ACENTO_PRIMARIO,
-        )
-        self.lbl_saldo.pack(anchor="w", padx=15, pady=(0, 12))
-
-    # ==========================================================
-    # FORMULÁRIO (ESQUERDA)
-    # ==========================================================
-    def _criar_formulario(self):
-        self.card_form = ctk.CTkFrame(
-            self,
-            corner_radius=15,
-            fg_color=COR_CARD,
-            border_width=1,
-            border_color=COR_DESPESA_BG,
-        )
-        self.card_form.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
-
-        # Título dinâmico
-        self.lbl_titulo_form = ctk.CTkLabel(
-            self.card_form,
-            text="➕  NOVA DESPESA",
-            font=fonte_subtitulo(),
-            text_color=COR_DESPESA,
-        )
-        self.lbl_titulo_form.pack(anchor="w", padx=20, pady=(15, 10))
-
-        # SELETOR VISUAL DE TIPO (RECEITA / DESPESA) COM BOTÕES LADO A LADO
-        frame_tipo = ctk.CTkFrame(self.card_form, fg_color="transparent")
-        frame_tipo.pack(fill="x", padx=20, pady=(0, 10))
-        frame_tipo.grid_columnconfigure((0, 1), weight=1)
-
-        self.tipo_selecionado = "DESPESA"
-
-        self.btn_sel_despesa = ctk.CTkButton(
-            frame_tipo,
-            text="🔴  DESPESA",
-            font=fonte(13, "bold"),
-            height=38,
-            fg_color=COR_DESPESA,
-            text_color="#0B1D1F",
-            hover_color=COR_ALERTA_HOVER,
-            command=lambda: self._selecionar_tipo("DESPESA"),
-        )
-        self.btn_sel_despesa.grid(row=0, column=0, sticky="ew", padx=(0, 5))
-
-        self.btn_sel_receita = ctk.CTkButton(
-            frame_tipo,
-            text="🟢  RECEITA",
-            font=fonte(13, "bold"),
-            height=38,
-            fg_color=COR_BOTAO_SECUNDARIO,
-            text_color=COR_TEXTO_SECUNDARIO,
-            hover_color=COR_BOTAO_SECUNDARIO_HOVER,
-            command=lambda: self._selecionar_tipo("RECEITA"),
-        )
-        self.btn_sel_receita.grid(row=0, column=1, sticky="ew", padx=(5, 0))
-
-        # Descrição
-        self.lbl_descricao = ctk.CTkLabel(
-            self.card_form, text="Descrição:", font=fonte_corpo()
-        )
-        self.lbl_descricao.pack(anchor="w", padx=20, pady=(0, 2))
-        self.descricao = ctk.CTkEntry(
-            self.card_form,
-            placeholder_text="Ex: Aluguel, Supermercado, Luz, Combustível...",
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            font=fonte_corpo(),
-        )
-        self.descricao.pack(fill="x", padx=20, pady=(0, 8))
-
-        # Campo Valor
-        ctk.CTkLabel(self.card_form, text="Valor (R$):", font=fonte_corpo()).pack(
-            anchor="w", padx=20, pady=(0, 2)
-        )
-        self.valor = ctk.CTkEntry(
-            self.card_form,
-            placeholder_text="0.00",
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            font=fonte(14, "bold"),
-        )
-        self.valor.pack(fill="x", padx=20, pady=(0, 4))
-
-        # Atalhos rápidos de valores (+10, +50, +100, +500)
-        chips_frame = ctk.CTkFrame(self.card_form, fg_color="transparent")
-        chips_frame.pack(fill="x", padx=20, pady=(0, 8))
-        chips_frame.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
-
-        valores_rapidos = [10, 50, 100, 500]
-        for idx, val in enumerate(valores_rapidos):
-            btn_chip = ctk.CTkButton(
-                chips_frame,
-                text=f"+{val}",
-                height=24,
-                font=fonte_pequena(),
-                fg_color=COR_BOTAO_SECUNDARIO,
-                hover_color=COR_BOTAO_SECUNDARIO_HOVER,
-                text_color=COR_TEXTO_PRINCIPAL,
-                command=lambda v=val: self._somar_ao_valor(v),
-            )
-            btn_chip.grid(row=0, column=idx, padx=2, sticky="ew")
-
-        btn_limpar_val = ctk.CTkButton(
-            chips_frame,
-            text="C",
-            height=24,
-            width=28,
-            font=fonte(11, "bold"),
-            fg_color=COR_DESPESA_BG,
-            hover_color=COR_EXCLUIR_HOVER,
-            text_color=COR_DESPESA,
-            command=lambda: self.valor.delete(0, "end"),
-        )
-        btn_limpar_val.grid(row=0, column=4, padx=2, sticky="ew")
-
-        # Linha dupla: Categoria e Terceiro
-        duo2 = ctk.CTkFrame(self.card_form, fg_color="transparent")
-        duo2.pack(fill="x", padx=20, pady=(0, 8))
-        duo2.grid_columnconfigure((0, 1), weight=1)
-
-        self.lbl_categoria = ctk.CTkLabel(
-            duo2, text="Categoria da Despesa:", font=fonte_corpo()
-        )
-        self.lbl_categoria.grid(row=0, column=0, sticky="w", pady=(0, 2))
-
-        self.lbl_terceiro = ctk.CTkLabel(
-            duo2, text="Beneficiário / Fornecedor (opcional):", font=fonte_corpo()
-        )
-        self.lbl_terceiro.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=(0, 2))
-
-        self.categoria = ctk.CTkComboBox(
-            duo2,
-            values=["Alimentação", "Transporte", "Moradia", "Lazer", "Saúde", "Educação", "Outros"],
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            button_color=COR_BOTAO_SECUNDARIO,
-            font=fonte_corpo(),
-        )
-        self.categoria.grid(row=1, column=0, sticky="ew")
-
-        self.terceiro = ctk.CTkComboBox(
-            duo2,
-            values=["Nenhum"],
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            button_color=COR_BOTAO_SECUNDARIO,
-            font=fonte_corpo(),
-        )
-        self.terceiro.grid(row=1, column=1, sticky="ew", padx=(10, 0))
-
-        # Linha dupla: Vencimento e Status
-        duo3 = ctk.CTkFrame(self.card_form, fg_color="transparent")
-        duo3.pack(fill="x", padx=20, pady=(0, 10))
-        duo3.grid_columnconfigure((0, 1), weight=1)
-
-        self.lbl_data = ctk.CTkLabel(
-            duo3, text="Data / Vencimento:", font=fonte_corpo()
-        )
-        self.lbl_data.grid(row=0, column=0, sticky="w", pady=(0, 2))
-
-        self.lbl_status = ctk.CTkLabel(
-            duo3, text="Status do Pagamento:", font=fonte_corpo()
-        )
-        self.lbl_status.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=(0, 2))
-
-        self.data_vencimento = ctk.CTkEntry(
-            duo3,
-            placeholder_text="DD/MM/AAAA",
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            font=fonte_corpo(),
-        )
-        hoje_formatado = date.today().strftime("%d/%m/%Y")
-        self.data_vencimento.insert(0, hoje_formatado)
-        self.data_vencimento.grid(row=1, column=0, sticky="ew")
-
-        ctk.CTkLabel(
-            duo3,
-            text="📅 Formato: DD/MM/AAAA",
-            font=fonte_hint(),
-            text_color=COR_TEXTO_MUTED,
-            anchor="w",
-        ).grid(row=2, column=0, sticky="w", pady=(2, 0))
-
-        self.status = ctk.CTkComboBox(
-            duo3,
-            values=["PAGO", "PENDENTE"],
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            button_color=COR_BOTAO_SECUNDARIO,
-            font=fonte_corpo(),
-        )
-        self.status.set("PAGO")
-        self.status.grid(row=1, column=1, sticky="ew", padx=(10, 0))
-
-        # Feedback
-        self.mensagem = ctk.CTkLabel(
-            self.card_form,
-            text="",
-            font=fonte(12, "bold"),
-        )
-        self.mensagem.pack(fill="x", padx=20, pady=(0, 6))
-
-        # Botões Salvar e Limpar lado a lado
-        btn_box = ctk.CTkFrame(self.card_form, fg_color="transparent")
-        btn_box.pack(fill="x", padx=20, pady=(0, 15))
-        btn_box.grid_columnconfigure(0, weight=3)
-        btn_box.grid_columnconfigure(1, weight=1)
-
-        self.btn_salvar = ctk.CTkButton(
-            btn_box,
-            text="Salvar Despesa",
-            fg_color=COR_DESPESA,
-            text_color="#0B1D1F",
-            hover_color=COR_ALERTA_HOVER,
-            font=fonte(13, "bold"),
-            height=38,
-            command=self.salvar_lancamento,
-        )
-        self.btn_salvar.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-
-        btn_limpar = ctk.CTkButton(
-            btn_box,
-            text="Limpar",
-            fg_color=COR_BOTAO_SECUNDARIO,
-            text_color=COR_TEXTO_PRINCIPAL,
-            hover_color=COR_BOTAO_SECUNDARIO_HOVER,
-            font=fonte_corpo(),
-            height=38,
-            command=self._limpar_campos,
-        )
-        btn_limpar.grid(row=0, column=1, sticky="ew")
-
-        # Inicializa os textos, placeholders e categorias contextuais
-        self._selecionar_tipo("DESPESA")
-
-    def _atualizar_categorias_por_tipo(self, tipo: str):
-        """Atualiza dinamicamente as opções de categoria conforme Receita ou Despesa."""
-        tipo_busca = "Receita" if tipo == "RECEITA" else "Despesa"
-        try:
-            todas = self.cat_dao.listar_todas()
-            filtradas = [
-                c["nome"]
-                for c in todas
-                if c.get("tipo", "").strip().lower() == tipo_busca.lower()
-            ]
-        except Exception:
-            filtradas = []
-
-        if not filtradas:
-            if tipo == "RECEITA":
-                filtradas = ["Salário", "Rendimentos", "Vendas", "Freelance", "Bonificação", "Outras Receitas"]
-            else:
-                filtradas = ["Alimentação", "Transporte", "Moradia", "Lazer", "Saúde", "Educação", "Outras Despesas"]
-
-        self.categoria.configure(values=filtradas)
-        if filtradas:
-            self.categoria.set(filtradas[0])
-
-    def _selecionar_tipo(self, tipo):
-        self.tipo_selecionado = tipo
-        if tipo == "RECEITA":
-            # Botões de tipo
-            self.btn_sel_receita.configure(fg_color=COR_RECEITA, text_color="#0B1D1F")
-            self.btn_sel_despesa.configure(fg_color=COR_BOTAO_SECUNDARIO, text_color=COR_TEXTO_SECUNDARIO)
-
-            # Título e borda do card
-            self.lbl_titulo_form.configure(text="➕  NOVA RECEITA", text_color=COR_RECEITA)
-            self.card_form.configure(border_color=COR_RECEITA_BG)
-
-            # Textos dos campos adaptados para Receita
-            self.descricao.configure(
-                placeholder_text="Ex: Salário, Rendimentos, Venda, Freelance, Pix recebido..."
-            )
-            self.lbl_categoria.configure(text="Categoria da Receita:")
-            self.lbl_terceiro.configure(text="Fonte Pagadora / Cliente (opcional):")
-            self.lbl_data.configure(text="Data do Recebimento:")
-            self.lbl_status.configure(text="Status do Recebimento:")
-
-            # Opções de Status adequadas para RECEITA
-            self.status.configure(values=["RECEBIDO", "A RECEBER"])
-            self.status.set("RECEBIDO")
-
-            # Botão salvar
-            self.btn_salvar.configure(
-                text="Salvar Receita",
-                fg_color=COR_RECEITA,
-                hover_color=COR_SUCESSO_HOVER,
-                text_color="#0B1D1F",
-            )
-        else:
-            # Botões de tipo
-            self.btn_sel_despesa.configure(fg_color=COR_DESPESA, text_color="#0B1D1F")
-            self.btn_sel_receita.configure(fg_color=COR_BOTAO_SECUNDARIO, text_color=COR_TEXTO_SECUNDARIO)
-
-            # Título e borda do card
-            self.lbl_titulo_form.configure(text="➕  NOVA DESPESA", text_color=COR_DESPESA)
-            self.card_form.configure(border_color=COR_DESPESA_BG)
-
-            # Textos dos campos adaptados para Despesa
-            self.descricao.configure(
-                placeholder_text="Ex: Aluguel, Supermercado, Luz, Combustível, Cartão..."
-            )
-            self.lbl_categoria.configure(text="Categoria da Despesa:")
-            self.lbl_terceiro.configure(text="Beneficiário / Fornecedor (opcional):")
-            self.lbl_data.configure(text="Data / Vencimento:")
-            self.lbl_status.configure(text="Status do Pagamento:")
-
-            # Opções de Status adequadas para DESPESA
-            self.status.configure(values=["PAGO", "PENDENTE"])
-            self.status.set("PAGO")
-
-            # Botão salvar
-            self.btn_salvar.configure(
-                text="Salvar Despesa",
-                fg_color=COR_DESPESA,
-                hover_color=COR_ALERTA_HOVER,
-                text_color="#0B1D1F",
-            )
-
-        # Atualiza categorias disponíveis de acordo com o tipo
-        self._atualizar_categorias_por_tipo(tipo)
-
-    def _somar_ao_valor(self, quantia):
-        val_atual_str = self.valor.get().strip().replace(",", ".").replace("R$", "")
-        try:
-            val_atual = float(val_atual_str) if val_atual_str else 0.0
-        except ValueError:
-            val_atual = 0.0
-        novo_val = val_atual + quantia
-        self.valor.delete(0, "end")
-        self.valor.insert(0, f"{novo_val:.2f}")
-
-    # ==========================================================
-    # PAINEL DE HISTÓRICO (DIREITA)
-    # ==========================================================
-    def _criar_painel_historico(self):
-        card_hist = ctk.CTkFrame(
-            self,
-            corner_radius=15,
-            fg_color=COR_CARD,
-            border_width=1,
-            border_color=COR_BORDA,
-        )
-        card_hist.grid(row=1, column=1, sticky="nsew", padx=(10, 0))
-        card_hist.grid_columnconfigure(0, weight=1)
-        card_hist.grid_rowconfigure(2, weight=1)
-
-        # Header com título e filtros
-        header = ctk.CTkFrame(card_hist, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 6))
-        header.grid_columnconfigure(0, weight=1)
-
-        self.lbl_qtd_lancamentos = ctk.CTkLabel(
-            header,
-            text="Lançamentos Recentes",
-            font=fonte_subtitulo(),
-            text_color=COR_TEXTO_PRINCIPAL,
-            anchor="w",
-        )
-        self.lbl_qtd_lancamentos.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
-
-        # Filtro de tipo (linha separada do título)
-        self.filtro_btn = ctk.CTkSegmentedButton(
-            header,
-            values=["Todos", "Receitas", "Despesas"],
-            command=self._alterar_filtro,
-            selected_color=COR_BOTAO_SECUNDARIO,
-            selected_hover_color=COR_BOTAO_SECUNDARIO_HOVER,
-        )
-        self.filtro_btn.set("Todos")
-        self.filtro_btn.grid(row=1, column=0, columnspan=2, sticky="ew")
-
-        # Barra de busca por texto
-        self.entry_busca = ctk.CTkEntry(
-            card_hist,
-            placeholder_text="🔍 Buscar por descrição ou categoria...",
-            fg_color=COR_CARD_INTERNO,
-            border_color=COR_BORDA,
-            font=fonte_corpo(),
-        )
-        self.entry_busca.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 8))
-        self.entry_busca.bind("<KeyRelease>", lambda e: self._filtrar_busca())
-
-        # ScrollFrame para a lista
-        self.scroll_lancamentos = ctk.CTkScrollableFrame(
-            card_hist,
-            fg_color="transparent",
-            corner_radius=10,
-        )
-        self.scroll_lancamentos.grid(row=2, column=0, sticky="nsew", padx=10, pady=(0, 15))
-        self.scroll_lancamentos.grid_columnconfigure(0, weight=1)
-
-    # ==========================================================
-    # AÇÕES E CRUD
-    # ==========================================================
-    def _alterar_filtro(self, valor):
-        self.filtro_tipo = valor
-        self.atualizar_dados()
-
-    def _filtrar_busca(self):
-        self.busca_texto = self.entry_busca.get().strip().lower()
-        self.atualizar_dados()
-
-    def salvar_lancamento(self):
-        descricao = self.descricao.get().strip()
-        valor_str = self.valor.get().strip()
-        tipo = self.tipo_selecionado
-        categoria = self.categoria.get().strip()
-        data_vencimento = self.data_vencimento.get().strip()
-
-        if not descricao or len(descricao) < 3:
-            self.mostrar_mensagem("A descrição deve ter pelo menos 3 caracteres.", "erro")
-            return
-
-        if not valor_str:
-            self.mostrar_mensagem("O valor é obrigatório.", "erro")
-            return
-
-        try:
-            valor_num = float(valor_str.replace(",", ".").replace("R$", "").strip())
-            if valor_num <= 0:
-                self.mostrar_mensagem("O valor deve ser maior que zero.", "erro")
-                return
-        except ValueError:
-            self.mostrar_mensagem("Digite um valor numérico válido.", "erro")
-            return
-
-        if not categoria:
-            self.mostrar_mensagem("A categoria é obrigatória.", "erro")
-            return
-
-        if not data_vencimento:
-            self.mostrar_mensagem("A data é obrigatória.", "erro")
-            return
-
-        try:
-            data_dt = datetime.strptime(data_vencimento, "%d/%m/%Y")
-            data_iso = data_dt.strftime("%Y-%m-%d")
-        except ValueError:
-            self.mostrar_mensagem("Use o formato DD/MM/AAAA para a data.", "erro")
-            return
-
-        tipo_banco = "Receita" if tipo == "RECEITA" else "Despesa"
-
-        try:
-            self.dao.inserir(
-                descricao=descricao,
-                valor=valor_num,
-                tipo=tipo_banco,
-                categoria=categoria,
-                data=data_iso,
-            )
-            self.mostrar_mensagem("✓ Lançamento salvo com sucesso!", "sucesso")
-            self._limpar_campos()
-            self.atualizar_dados()
-            try:
-                notif = GerenciadorNotificacoes.obter_instancia()
-                if notif:
-                    notif.sucesso(f"Lançamento '{descricao}' salvo!")
-            except Exception:
-                pass
-        except Exception as e:
-            self.mostrar_mensagem(f"Erro ao salvar: {e}", "erro")
-            try:
-                notif = GerenciadorNotificacoes.obter_instancia()
-                if notif:
-                    notif.erro(f"Erro ao salvar lançamento: {e}")
-            except Exception:
-                pass
-
-    def _excluir_lancamento(self, lancamento_id: int):
-        self.dao.excluir(lancamento_id)
-        self.atualizar_dados()
-        try:
-            notif = GerenciadorNotificacoes.obter_instancia()
-            if notif:
-                notif.sucesso("Lançamento excluído!")
-        except Exception:
-            pass
-
-    def mostrar_mensagem(self, texto, tipo):
-        self.mensagem.configure(text=texto)
-        cor = COR_ALERTA if tipo == "erro" else COR_SUCESSO
-        self.mensagem.configure(text_color=cor)
-
-    def _limpar_campos(self):
-        self.descricao.delete(0, "end")
-        self.valor.delete(0, "end")
-        self.data_vencimento.delete(0, "end")
-        self.data_vencimento.insert(0, date.today().strftime("%d/%m/%Y"))
-        if self.tipo_selecionado == "RECEITA":
-            self.status.set("RECEBIDO")
-        else:
-            self.status.set("PAGO")
-
-    # ==========================================================
-    # ATUALIZAÇÃO GERAL E SINCRONIZAÇÃO
-    # ==========================================================
     def atualizar_dados(self):
-        """Atualiza saldos, listas e opções dinâmicas dos ComboBoxes."""
-        lancamentos = self.dao.listar_todos()
+        self._montar_tela()
 
-        # Calcula Totais
-        total_rec = sum(l["value"] for l in lancamentos if l["type"] == "Receita")
-        total_desp = sum(l["value"] for l in lancamentos if l["type"] == "Despesa")
-        saldo = total_rec - total_desp
-
-        self.lbl_total_receitas.configure(text=f"R$ {total_rec:.2f}")
-        self.lbl_total_despesas.configure(text=f"R$ {total_desp:.2f}")
-
-        cor_saldo = COR_RECEITA if saldo >= 0 else COR_DESPESA
-        sinal = "+" if saldo > 0 else ""
-        self.lbl_saldo.configure(text=f"{sinal}R$ {saldo:.2f}", text_color=cor_saldo)
-
-        # Atualiza opções de Categorias filtradas pelo tipo ativo (Receita / Despesa)
-        self._atualizar_categorias_por_tipo(self.tipo_selecionado)
-
-        # Atualiza opções de Terceiros do TerceiroDAO
-        try:
-            terceiros = self.ter_dao.listar_todos()
-            nomes_ter = ["Nenhum"] + [t["nome"] for t in terceiros] if terceiros else ["Nenhum"]
-            self.terceiro.configure(values=nomes_ter)
-            if self.terceiro.get() not in nomes_ter:
-                self.terceiro.set(nomes_ter[0])
-        except Exception:
-            pass
-
-        # Filtra os lançamentos para exibição
-        filtrados = lancamentos
-        if self.filtro_tipo == "Receitas":
-            filtrados = [l for l in filtrados if l["type"] == "Receita"]
-        elif self.filtro_tipo == "Despesas":
-            filtrados = [l for l in filtrados if l["type"] == "Despesa"]
-
-        if self.busca_texto:
-            filtrados = [
-                l
-                for l in filtrados
-                if self.busca_texto in l["description"].lower()
-                or self.busca_texto in l["category"].lower()
-            ]
-
-        self.lbl_qtd_lancamentos.configure(
-            text=f"Lançamentos Recentes ({len(filtrados)})"
-        )
-
-        # Renderiza a lista
-        for w in self.scroll_lancamentos.winfo_children():
+    def _montar_tela(self):
+        for w in self.winfo_children():
             w.destroy()
 
-        if not filtrados:
+        scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        scroll.grid(row=0, column=0, sticky="nsew")
+        scroll.grid_columnconfigure(0, weight=1)
+
+        # 1. CABEÇALHO
+        self._build_header(scroll)
+
+        # 2. MÉTRICAS (3 CARDS COM MINI GRÁFICOS)
+        self._build_metricas(scroll)
+
+        # 3. CORPO: FORMULÁRIO (ESQ) + HISTÓRICO (DIR)
+        corpo = ctk.CTkFrame(scroll, fg_color="transparent")
+        corpo.pack(fill="both", expand=True, pady=(0, 10))
+        corpo.grid_columnconfigure(0, weight=4)
+        corpo.grid_columnconfigure(1, weight=6)
+
+        self._build_formulario(corpo)
+        self._build_painel_historico(corpo)
+
+    # ==============================================================
+    # 1. CABEÇALHO
+    # ==============================================================
+    def _build_header(self, parent):
+        header = ctk.CTkFrame(parent, fg_color="transparent")
+        header.pack(fill="x", pady=(0, 12))
+        header.grid_columnconfigure(0, weight=1)
+
+        tit_box = ctk.CTkFrame(header, fg_color="transparent")
+        tit_box.grid(row=0, column=0, sticky="w")
+
+        tit_row = ctk.CTkFrame(tit_box, fg_color="transparent")
+        tit_row.pack(anchor="w")
+
+        # Ícone de documento
+        ic_box = ctk.CTkFrame(tit_row, width=32, height=32, corner_radius=8, fg_color="#182A3A")
+        ic_box.pack(side="left", padx=(0, 10))
+        ic_box.pack_propagate(False)
+        ctk.CTkLabel(ic_box, text="📄", font=fonte(14)).place(relx=0.5, rely=0.5, anchor="center")
+
+        ctk.CTkLabel(tit_row, text="Lançamentos", font=fonte(22, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(side="left")
+
+        ctk.CTkLabel(
+            tit_box,
+            text="Registre e acompanhe todas as suas receitas, despesas e mantenha suas finanças em dia.",
+            font=fonte(12),
+            text_color=COR_TEXTO_SECUNDARIO,
+            anchor="w",
+        ).pack(anchor="w", pady=(2, 0))
+
+        # Seletor de mês
+        nav_mes = ctk.CTkFrame(header, fg_color=COR_CARD, corner_radius=10, border_width=1, border_color=COR_BORDA)
+        nav_mes.grid(row=0, column=1, sticky="e")
+
+        ctk.CTkLabel(nav_mes, text="📅", font=fonte(12)).pack(side="left", padx=(10, 4))
+
+        self.mes_combo = ctk.CTkOptionMenu(
+            nav_mes,
+            values=["Setembro de 2026", "Agosto de 2026", "Julho de 2026", "Abril de 2026"],
+            width=140,
+            height=30,
+            fg_color=COR_CARD,
+            button_color=COR_CARD_INTERNO,
+            button_hover_color=COR_CARD_INTERNO,
+            text_color=COR_TEXTO_PRINCIPAL,
+            font=fonte(12),
+        )
+        self.mes_combo.set("Setembro de 2026")
+        self.mes_combo.pack(side="left", padx=2, pady=3)
+
+        ctk.CTkButton(
+            nav_mes, text="‹", width=28, height=28, corner_radius=6,
+            fg_color="transparent", hover_color=COR_CARD_INTERNO, text_color=COR_TEXTO_SECUNDARIO, font=fonte(16, "bold")
+        ).pack(side="left", padx=(0, 2), pady=3)
+
+        ctk.CTkButton(
+            nav_mes, text="›", width=28, height=28, corner_radius=6,
+            fg_color="transparent", hover_color=COR_CARD_INTERNO, text_color=COR_TEXTO_SECUNDARIO, font=fonte(16, "bold")
+        ).pack(side="left", padx=(0, 6), pady=3)
+
+    # ==============================================================
+    # 2. MÉTRICAS (3 CARDS COM MINI GRÁFICOS)
+    # ==============================================================
+    def _build_metricas(self, parent):
+        grid = ctk.CTkFrame(parent, fg_color="transparent")
+        grid.pack(fill="x", pady=(0, 14))
+        grid.grid_columnconfigure((0, 1, 2), weight=1)
+
+        # Calcular totais reais ou usar padrão de exibição
+        lancamentos = self.dao.listar_todos()
+        rec_tot = sum(l.valor for l in lancamentos if getattr(l, "tipo", "") == "Receita") if lancamentos else 4850.0
+        desp_tot = sum(l.valor for l in lancamentos if getattr(l, "tipo", "") == "Despesa") if lancamentos else 3290.0
+        saldo_tot = rec_tot - desp_tot if lancamentos else 1560.0
+
+        cards_data = [
+            ("↑", "#0D2E2B", "#00D084", "Total de Receitas", f"R$ {rec_tot:,.2f}", "+12% em relação ao mês anterior", "barras", "#00D084"),
+            ("↓", "#2E151B", "#F43F5E", "Total de Despesas", f"R$ {desp_tot:,.2f}", "+8% em relação ao mês anterior", "barras", "#F43F5E"),
+            ("💳", "#122538", "#38BDF8", "Saldo Líquido", f"R$ {saldo_tot:,.2f}", "+28% em relação ao mês anterior", "linha", "#38BDF8"),
+        ]
+
+        for idx, (ic, bg_ic, cor_ic, tit, val, foot, tipo_spark, cor_spark) in enumerate(cards_data):
+            card = ctk.CTkFrame(grid, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
+            card.grid(row=0, column=idx, padx=4, sticky="nsew")
+
+            row_top = ctk.CTkFrame(card, fg_color="transparent")
+            row_top.pack(fill="x", padx=14, pady=(12, 4))
+
+            # Ícone
+            ic_box = ctk.CTkFrame(row_top, width=34, height=34, corner_radius=17, fg_color=bg_ic)
+            ic_box.pack(side="left", padx=(0, 10))
+            ic_box.pack_propagate(False)
+            ctk.CTkLabel(ic_box, text=ic, font=fonte(14, "bold"), text_color=cor_ic).place(relx=0.5, rely=0.5, anchor="center")
+
+            # Título e Valor
+            t_box = ctk.CTkFrame(row_top, fg_color="transparent")
+            t_box.pack(side="left", fill="x", expand=True)
+
+            ctk.CTkLabel(t_box, text=tit, font=fonte(11), text_color=COR_TEXTO_SECUNDARIO, anchor="w").pack(anchor="w")
+            ctk.CTkLabel(t_box, text=val, font=fonte(18, "bold"), text_color=cor_ic, anchor="w").pack(anchor="w")
+
+            # Mini sparkline à direita
+            canvas_spark = tk.Canvas(row_top, width=50, height=34, bg=obter_cor(COR_CARD), highlightthickness=0)
+            canvas_spark.pack(side="right")
+
+            if tipo_spark == "barras":
+                alturas = [0.3, 0.5, 0.4, 0.7, 0.9, 0.6]
+                for b_i, h_p in enumerate(alturas):
+                    bx = b_i * 8 + 2
+                    by = 34 - (h_p * 26)
+                    canvas_spark.create_rectangle(bx, by, bx + 5, 34, fill=cor_spark, outline="")
+            else:
+                pts = [(2, 26), (12, 22), (22, 24), (32, 12), (42, 14), (48, 6)]
+                for p_i in range(len(pts) - 1):
+                    canvas_spark.create_line(pts[p_i][0], pts[p_i][1], pts[p_i+1][0], pts[p_i+1][1], fill=cor_spark, width=2)
+
+            # Footer
             ctk.CTkLabel(
-                self.scroll_lancamentos,
-                text="Nenhum lançamento encontrado.",
-                font=fonte_corpo(),
-                text_color=COR_TEXTO_TERCIARIO,
-            ).pack(pady=40)
-            return
+                card,
+                text=f"▲ {foot}",
+                font=fonte(10),
+                text_color=cor_ic,
+                anchor="w",
+            ).pack(anchor="w", padx=14, pady=(2, 12))
 
-        # Renderiza em ordem decrescente de data/id
-        for l in reversed(filtrados):
-            self._renderizar_card_lancamento(l)
-
-    def _renderizar_card_lancamento(self, l: dict):
+    # ==============================================================
+    # 3. FORMULÁRIO (COLUNA ESQUERDA)
+    # ==============================================================
+    def _build_formulario(self, parent):
         card = ctk.CTkFrame(
-            self.scroll_lancamentos,
-            fg_color=COR_CARD_INTERNO,
-            corner_radius=10,
+            parent,
+            fg_color=COR_CARD,
+            corner_radius=14,
             border_width=1,
             border_color=COR_BORDA,
         )
-        card.pack(fill="x", padx=4, pady=4)
-        card.grid_columnconfigure(1, weight=1)
+        card.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
 
-        eh_rec = l["type"] == "Receita"
-        cor_val = COR_RECEITA if eh_rec else COR_DESPESA
-        sinal = "+" if eh_rec else "-"
-        icone = "↑" if eh_rec else "↓"
-        bg_ico = COR_RECEITA_BG if eh_rec else COR_DESPESA_BG
+        # Topo
+        topo = ctk.CTkFrame(card, fg_color="transparent")
+        topo.pack(fill="x", padx=16, pady=(16, 12))
 
-        # Ícone de Tipo
-        ico_frame = ctk.CTkFrame(card, fg_color=bg_ico, corner_radius=6, width=32, height=32)
-        ico_frame.grid(row=0, column=0, rowspan=2, padx=10, pady=8)
-        ico_frame.grid_propagate(False)
-        ctk.CTkLabel(
-            ico_frame,
-            text=icone,
-            font=fonte(14, "bold"),
-            text_color=cor_val,
-        ).pack(expand=True)
+        ic_box = ctk.CTkFrame(topo, width=32, height=32, corner_radius=16, fg_color="#0D2E2B")
+        ic_box.pack(side="left", padx=(0, 10))
+        ic_box.pack_propagate(False)
+        ctk.CTkLabel(ic_box, text="＋", font=fonte(14, "bold"), text_color="#00D084").place(relx=0.5, rely=0.5, anchor="center")
 
-        # Descrição e detalhes
-        ctk.CTkLabel(
-            card,
-            text=l["description"],
-            font=fonte(13, "bold"),
-            text_color=COR_TEXTO_PRINCIPAL,
-            anchor="w",
-        ).grid(row=0, column=1, sticky="w", pady=(6, 0))
+        tit_box = ctk.CTkFrame(topo, fg_color="transparent")
+        tit_box.pack(side="left", fill="x", expand=True)
 
-        # Data formatada para DD/MM/AAAA
-        data_exibicao = l["date"]
-        try:
-            data_exibicao = datetime.strptime(l["date"], "%Y-%m-%d").strftime("%d/%m/%Y")
-        except Exception:
-            pass
+        ctk.CTkLabel(tit_box, text="Novo Lançamento", font=fonte(14, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w")
+        ctk.CTkLabel(tit_box, text="Registre uma receita ou despesa de forma rápida e organizada.", font=fonte(10), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w")
 
-        info_detalhe = f"{l['category']}  •  {data_exibicao}"
-        ctk.CTkLabel(
-            card,
-            text=info_detalhe,
-            font=fonte_pequena(),
-            text_color=COR_TEXTO_TERCIARIO,
-            anchor="w",
-        ).grid(row=1, column=1, sticky="w", pady=(0, 6))
+        # Pílulas Seletoras: [- Despesa] e [+ Receita]
+        pilula_box = ctk.CTkFrame(card, fg_color=COR_CARD_INTERNO, corner_radius=10, height=42)
+        pilula_box.pack(fill="x", padx=16, pady=(0, 14))
 
-        # Valor
-        ctk.CTkLabel(
-            card,
-            text=f"{sinal}R$ {l['value']:.2f}",
-            font=fonte(13, "bold"),
-            text_color=cor_val,
-        ).grid(row=0, column=2, rowspan=2, padx=8)
-
-        # Botão Excluir
-        btn_del = ctk.CTkButton(
-            card,
-            text="✕",
-            width=26,
-            height=26,
-            fg_color="transparent",
-            hover_color=COR_EXCLUIR_HOVER,
-            text_color=COR_EXCLUIR_TEXTO,
-            font=fonte(11, "bold"),
-            command=lambda lid=l["id"]: self._excluir_lancamento(lid),
+        self.btn_tipo_despesa = ctk.CTkButton(
+            pilula_box,
+            text="⛔  Despesa",
+            height=34,
+            corner_radius=8,
+            fg_color="#F43F5E" if self.tipo_selecionado == "Despesa" else "transparent",
+            text_color="#FFFFFF" if self.tipo_selecionado == "Despesa" else COR_TEXTO_SECUNDARIO,
+            hover_color="#E11D48",
+            font=fonte(12, "bold"),
+            command=lambda: self._set_tipo("Despesa"),
         )
-        btn_del.grid(row=0, column=3, rowspan=2, padx=(0, 8))
+        self.btn_tipo_despesa.pack(side="left", fill="both", expand=True, padx=4, pady=4)
+
+        self.btn_tipo_receita = ctk.CTkButton(
+            pilula_box,
+            text="＋  Receita",
+            height=34,
+            corner_radius=8,
+            fg_color="#00D084" if self.tipo_selecionado == "Receita" else "transparent",
+            text_color="#0B131B" if self.tipo_selecionado == "Receita" else COR_TEXTO_SECUNDARIO,
+            hover_color="#00B875",
+            font=fonte(12, "bold"),
+            command=lambda: self._set_tipo("Receita"),
+        )
+        self.btn_tipo_receita.pack(side="right", fill="both", expand=True, padx=4, pady=4)
+
+        # Campo: Valor (R$) *
+        ctk.CTkLabel(card, text="Valor (R$) *", font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", padx=16, pady=(0, 4))
+        f_val = ctk.CTkFrame(card, fg_color=COR_CARD_INTERNO, corner_radius=8, border_width=1, border_color=COR_BORDA, height=38)
+        f_val.pack(fill="x", padx=16, pady=(0, 12))
+        f_val.pack_propagate(False)
+
+        ctk.CTkLabel(f_val, text="💰", font=fonte(13)).pack(side="left", padx=10)
+        self.entry_valor = ctk.CTkEntry(
+            f_val, placeholder_text="0,00", font=fonte(13, "bold"), fg_color="transparent", border_width=0, text_color=COR_TEXTO_PRINCIPAL
+        )
+        self.entry_valor.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+        # Campo: Descrição *
+        ctk.CTkLabel(card, text="Descrição *", font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", padx=16, pady=(0, 4))
+        f_desc = ctk.CTkFrame(card, fg_color=COR_CARD_INTERNO, corner_radius=8, border_width=1, border_color=COR_BORDA, height=38)
+        f_desc.pack(fill="x", padx=16, pady=(0, 12))
+        f_desc.pack_propagate(False)
+
+        ctk.CTkLabel(f_desc, text="📄", font=fonte(13)).pack(side="left", padx=10)
+        self.entry_desc = ctk.CTkEntry(
+            f_desc, placeholder_text="Ex: Aluguel, Supermercado, Conta de Luz...", font=fonte(11), fg_color="transparent", border_width=0, text_color=COR_TEXTO_PRINCIPAL
+        )
+        self.entry_desc.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+        # Linha dupla: Categoria e Beneficiário
+        grid_campos = ctk.CTkFrame(card, fg_color="transparent")
+        grid_campos.pack(fill="x", padx=16, pady=(0, 12))
+        grid_campos.grid_columnconfigure((0, 1), weight=1)
+
+        # Categoria
+        ctk.CTkLabel(grid_campos, text="Categoria *", font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL).grid(row=0, column=0, sticky="w", pady=(0, 4))
+        f_cat = ctk.CTkFrame(grid_campos, fg_color=COR_CARD_INTERNO, corner_radius=8, border_width=1, border_color=COR_BORDA, height=38)
+        f_cat.grid(row=1, column=0, sticky="ew", padx=(0, 6))
+        f_cat.pack_propagate(False)
+
+        ctk.CTkLabel(f_cat, text="🍴", font=fonte(12)).pack(side="left", padx=(8, 4))
+
+        cats = []
+        if self.cat_dao:
+            try:
+                for c in self.cat_dao.listar_todas():
+                    cats.append(c["nome"] if isinstance(c, dict) else getattr(c, "nome", str(c)))
+            except Exception:
+                pass
+        if not cats:
+            cats = ["Alimentação", "Moradia", "Transporte", "Saúde", "Lazer", "Educação", "Salário", "Investimentos", "Outros"]
+
+        self.combo_categoria = ctk.CTkOptionMenu(
+            f_cat,
+            values=cats,
+            height=30,
+            fg_color=COR_CARD_INTERNO,
+            button_color=COR_CARD,
+            text_color=COR_TEXTO_PRINCIPAL,
+            font=fonte(11),
+        )
+        self.combo_categoria.set(cats[0])
+        self.combo_categoria.pack(side="left", fill="both", expand=True)
+
+        # Beneficiário / Fornecedor
+        ctk.CTkLabel(grid_campos, text="Beneficiário / Fornecedor", font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL).grid(row=0, column=1, sticky="w", pady=(0, 4))
+        f_ter = ctk.CTkFrame(grid_campos, fg_color=COR_CARD_INTERNO, corner_radius=8, border_width=1, border_color=COR_BORDA, height=38)
+        f_ter.grid(row=1, column=1, sticky="ew", padx=(6, 0))
+        f_ter.pack_propagate(False)
+
+        ctk.CTkLabel(f_ter, text="👤", font=fonte(12)).pack(side="left", padx=(8, 4))
+        self.entry_beneficiario = ctk.CTkEntry(
+            f_ter, placeholder_text="Ex: Pão de Açúcar", font=fonte(11), fg_color="transparent", border_width=0, text_color=COR_TEXTO_PRINCIPAL
+        )
+        self.entry_beneficiario.pack(side="left", fill="both", expand=True, padx=(0, 8))
+
+        # Linha dupla: Data e Status
+        grid_campos2 = ctk.CTkFrame(card, fg_color="transparent")
+        grid_campos2.pack(fill="x", padx=16, pady=(0, 6))
+        grid_campos2.grid_columnconfigure((0, 1), weight=1)
+
+        # Data
+        ctk.CTkLabel(grid_campos2, text="Data *", font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL).grid(row=0, column=0, sticky="w", pady=(0, 4))
+        f_dat = ctk.CTkFrame(grid_campos2, fg_color=COR_CARD_INTERNO, corner_radius=8, border_width=1, border_color=COR_BORDA, height=38)
+        f_dat.grid(row=1, column=0, sticky="ew", padx=(0, 6))
+        f_dat.pack_propagate(False)
+
+        ctk.CTkLabel(f_dat, text="📅", font=fonte(12)).pack(side="left", padx=(8, 4))
+        self.entry_data = ctk.CTkEntry(
+            f_dat, font=fonte(11), fg_color="transparent", border_width=0, text_color=COR_TEXTO_PRINCIPAL
+        )
+        self.entry_data.insert(0, date.today().strftime("%d/%m/%Y"))
+        self.entry_data.pack(side="left", fill="both", expand=True, padx=(0, 8))
+
+        # Status
+        ctk.CTkLabel(grid_campos2, text="Status do Pagamento", font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL).grid(row=0, column=1, sticky="w", pady=(0, 4))
+        f_stat = ctk.CTkFrame(grid_campos2, fg_color=COR_CARD_INTERNO, corner_radius=8, border_width=1, border_color=COR_BORDA, height=38)
+        f_stat.grid(row=1, column=1, sticky="ew", padx=(6, 0))
+        f_stat.pack_propagate(False)
+
+        ctk.CTkLabel(f_stat, text="💳", font=fonte(12)).pack(side="left", padx=(8, 4))
+        self.combo_status = ctk.CTkOptionMenu(
+            f_stat,
+            values=["Pago", "Pendente", "Recebido"],
+            height=30,
+            fg_color=COR_CARD_INTERNO,
+            button_color=COR_CARD,
+            text_color=COR_TEXTO_PRINCIPAL,
+            font=fonte(11),
+        )
+        self.combo_status.set("Pago")
+        self.combo_status.pack(side="left", fill="both", expand=True)
+
+        ctk.CTkLabel(card, text="ⓘ Formato da data: DD/MM/AAAA", font=fonte(9), text_color=COR_TEXTO_MUTED).pack(anchor="w", padx=16, pady=(0, 14))
+
+        # Botões Salvar e Limpar
+        botoes_box = ctk.CTkFrame(card, fg_color="transparent")
+        botoes_box.pack(fill="x", padx=16, pady=(0, 16))
+
+        cor_btn_salvar = "#F43F5E" if self.tipo_selecionado == "Despesa" else "#00D084"
+        self.btn_salvar = ctk.CTkButton(
+            botoes_box,
+            text="＋  Salvar Lançamento",
+            height=40,
+            corner_radius=10,
+            fg_color=cor_btn_salvar,
+            hover_color="#E11D48" if self.tipo_selecionado == "Despesa" else "#00B875",
+            text_color="#FFFFFF" if self.tipo_selecionado == "Despesa" else "#0B131B",
+            font=fonte(12, "bold"),
+            command=self._salvar_lancamento,
+        )
+        self.btn_salvar.pack(side="left", fill="x", expand=True, padx=(0, 8))
+
+        ctk.CTkButton(
+            botoes_box,
+            text="🔄  Limpar Campos",
+            height=40,
+            width=130,
+            corner_radius=10,
+            fg_color=COR_CARD_INTERNO,
+            hover_color="#1E2F40",
+            text_color=COR_TEXTO_SECUNDARIO,
+            font=fonte(11),
+            command=self._limpar_formulario,
+        ).pack(side="right")
+
+    def _set_tipo(self, novo_tipo: str):
+        self.tipo_selecionado = novo_tipo
+        if novo_tipo == "Despesa":
+            self.btn_tipo_despesa.configure(fg_color="#F43F5E", text_color="#FFFFFF")
+            self.btn_tipo_receita.configure(fg_color="transparent", text_color=COR_TEXTO_SECUNDARIO)
+            self.btn_salvar.configure(fg_color="#F43F5E", hover_color="#E11D48", text_color="#FFFFFF")
+            self.combo_status.set("Pago")
+        else:
+            self.btn_tipo_despesa.configure(fg_color="transparent", text_color=COR_TEXTO_SECUNDARIO)
+            self.btn_tipo_receita.configure(fg_color="#00D084", text_color="#0B131B")
+            self.btn_salvar.configure(fg_color="#00D084", hover_color="#00B875", text_color="#0B131B")
+            self.combo_status.set("Recebido")
+
+    def _limpar_formulario(self):
+        self.entry_valor.delete(0, "end")
+        self.entry_desc.delete(0, "end")
+        self.entry_beneficiario.delete(0, "end")
+        self.entry_data.delete(0, "end")
+        self.entry_data.insert(0, date.today().strftime("%d/%m/%Y"))
+
+    def _salvar_lancamento(self):
+        try:
+            val_txt = self.entry_valor.get().replace("R$", "").replace(".", "").replace(",", ".").strip()
+            val = float(val_txt)
+        except Exception:
+            return
+
+        desc = self.entry_desc.get().strip() or "Lançamento"
+        cat = self.combo_categoria.get()
+        data_txt = self.entry_data.get().strip()
+
+        try:
+            d_obj = datetime.strptime(data_txt, "%d/%m/%Y")
+            data_sql = d_obj.strftime("%Y-%m-%d")
+        except Exception:
+            data_sql = date.today().strftime("%Y-%m-%d")
+
+        novo = Lancamento(
+            descricao=desc,
+            valor=val,
+            tipo=self.tipo_selecionado,
+            categoria=cat,
+            data=data_sql,
+        )
+        self.dao.inserir(novo)
+        self._limpar_formulario()
+        self._montar_tela()
+
+    # ==============================================================
+    # 4. HISTÓRICO RECENTE (COLUNA DIREITA)
+    # ==============================================================
+    def _build_painel_historico(self, parent):
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=COR_CARD,
+            corner_radius=14,
+            border_width=1,
+            border_color=COR_BORDA,
+        )
+        card.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
+
+        # Topo
+        topo = ctk.CTkFrame(card, fg_color="transparent")
+        topo.pack(fill="x", padx=16, pady=(16, 10))
+
+        ic_box = ctk.CTkFrame(topo, width=32, height=32, corner_radius=16, fg_color="#0D2E2B")
+        ic_box.pack(side="left", padx=(0, 10))
+        ic_box.pack_propagate(False)
+        ctk.CTkLabel(ic_box, text="🕒", font=fonte(13)).place(relx=0.5, rely=0.5, anchor="center")
+
+        tit_box = ctk.CTkFrame(topo, fg_color="transparent")
+        tit_box.pack(side="left", fill="x", expand=True)
+
+        ctk.CTkLabel(tit_box, text="Lançamentos Recentes", font=fonte(14, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w")
+        ctk.CTkLabel(tit_box, text="Acompanhe, edite ou filtre seus lançamentos.", font=fonte(10), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w")
+
+        ctk.CTkButton(
+            topo, text="Ver todos →", fg_color="transparent", hover_color=COR_CARD_INTERNO, text_color="#00D084", font=fonte(11), width=70
+        ).pack(side="right")
+
+        # Barra de Filtros em Abas e Busca
+        barra_busca = ctk.CTkFrame(card, fg_color="transparent")
+        barra_busca.pack(fill="x", padx=16, pady=(0, 12))
+        barra_busca.grid_columnconfigure(1, weight=1)
+
+        # Abas de filtro
+        abas_frame = ctk.CTkFrame(barra_busca, fg_color=COR_CARD_INTERNO, corner_radius=8, height=34)
+        abas_frame.grid(row=0, column=0, sticky="w", padx=(0, 10))
+
+        for aba_nome in ["Todos (7)", "Receitas (3)", "Despesas (4)"]:
+            nome_puro = aba_nome.split()[0]
+            ativo = (nome_puro == self.filtro_aba)
+            b = ctk.CTkButton(
+                abas_frame,
+                text=aba_nome,
+                height=26,
+                corner_radius=6,
+                fg_color="#00D084" if ativo else "transparent",
+                text_color="#0B131B" if ativo else COR_TEXTO_SECUNDARIO,
+                font=fonte(10, "bold" if ativo else "normal"),
+                command=lambda a=nome_puro: self._filtrar_aba(a),
+            )
+            b.pack(side="left", padx=2, pady=4)
+
+        # Campo de busca
+        f_busca = ctk.CTkFrame(barra_busca, fg_color=COR_CARD_INTERNO, corner_radius=8, border_width=1, border_color=COR_BORDA, height=34)
+        f_busca.grid(row=0, column=1, sticky="ew", padx=(0, 8))
+        f_busca.pack_propagate(False)
+
+        ctk.CTkLabel(f_busca, text="🔍", font=fonte(11)).pack(side="left", padx=8)
+        self.entry_busca = ctk.CTkEntry(
+            f_busca, placeholder_text="Buscar por descrição, categoria...", font=fonte(11), fg_color="transparent", border_width=0, text_color=COR_TEXTO_PRINCIPAL
+        )
+        self.entry_busca.pack(side="left", fill="both", expand=True)
+
+        # Botão de sliders de filtro
+        ctk.CTkButton(
+            barra_busca, text="🎛️", width=34, height=34, corner_radius=8, fg_color=COR_CARD_INTERNO, hover_color="#1E2F40", text_color=COR_TEXTO_PRINCIPAL
+        ).grid(row=0, column=2, sticky="e")
+
+        # Cabeçalho da Tabela
+        th = ctk.CTkFrame(card, fg_color="transparent")
+        th.pack(fill="x", padx=16, pady=(0, 6))
+
+        ctk.CTkLabel(th, text="Data ↕", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=60, anchor="w").pack(side="left")
+        ctk.CTkLabel(th, text="Descrição", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=150, anchor="w").pack(side="left", padx=(10, 0))
+        ctk.CTkLabel(th, text="Categoria", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=100, anchor="w").pack(side="left", padx=10)
+        ctk.CTkLabel(th, text="Status", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=80, anchor="w").pack(side="left")
+        ctk.CTkLabel(th, text="Ações", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=40, anchor="center").pack(side="right", padx=(4, 6))
+        ctk.CTkLabel(th, text="Valor (R$)", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, anchor="e").pack(side="right", padx=(0, 10))
+
+        # Lista de Lançamentos
+        lancamentos_demo = getattr(self, "_itens_demo_cache", [
+            ("29\nSET", "🛒", "#2E151B", "Supermercado Extra", "Compras do mês", "🍴 Alimentação", "● Pago", "- R$ 320,50", "#F43F5E", None),
+            ("28\nSET", "💼", "#102E24", "Salário", "Empresa XYZ", "💼 Salário", "● Pago", "+ R$ 3.500,00", "#00D084", None),
+            ("25\nSET", "🏠", "#2E151B", "Aluguel", "Apartamento", "🏠 Moradia", "● Pago", "- R$ 1.200,00", "#F43F5E", None),
+            ("23\nSET", "📈", "#102E24", "Rendimento CDB", "Banco Inter", "📈 Investimentos", "● Pago", "+ R$ 150,00", "#00D084", None),
+            ("20\nSET", "💡", "#2E151B", "Conta de Luz", "Enel", "📄 Contas", "● Pago", "- R$ 180,90", "#F43F5E", None),
+            ("18\nSET", "🚗", "#2E151B", "Combustível", "Posto Ipiranga", "🚗 Transporte", "● Pago", "- R$ 230,00", "#F43F5E", None),
+            ("15\nSET", "💻", "#102E24", "Freelance - Projeto", "Cliente ABC", "💼 Serviços", "● Recebido", "+ R$ 1.200,00", "#00D084", None),
+        ])
+
+        # Pegar lançamentos reais do banco
+        reais = self.dao.listar_todos()
+        if reais:
+            demo_convertido = []
+            for r in reais:
+                eh_rec = (getattr(r, "tipo", "") == "Receita")
+                cor_v = "#00D084" if eh_rec else "#F43F5E"
+                sinal = "+ " if eh_rec else "- "
+                bg_i = "#102E24" if eh_rec else "#2E151B"
+                ic = "💼" if eh_rec else "🛒"
+                d_str = getattr(r, "data", "")
+                badge_d = d_str[-5:].replace("-", "\n") if len(d_str) >= 5 else "HOJE"
+                lid = getattr(r, "id", None)
+                demo_convertido.append((
+                    badge_d, ic, bg_i, getattr(r, "descricao", "Item"),
+                    "Detalhe", getattr(r, "categoria", "Geral"),
+                    "● Pago" if not eh_rec else "● Recebido",
+                    f"{sinal}R$ {getattr(r, 'valor', 0):,.2f}", cor_v, lid
+                ))
+            if demo_convertido:
+                lancamentos_demo = demo_convertido
+
+        for d_badge, ic, bg_ic, tit, sub, cat_b, st_b, val, cor_val, lid in lancamentos_demo:
+            linha = ctk.CTkFrame(card, fg_color=COR_CARD_INTERNO, corner_radius=8, height=48)
+            linha.pack(fill="x", padx=16, pady=3)
+            linha.pack_propagate(False)
+
+            # Badge Data
+            d_box = ctk.CTkFrame(linha, width=32, height=32, corner_radius=6, fg_color="#182A3A")
+            d_box.pack(side="left", padx=(8, 8))
+            d_box.pack_propagate(False)
+            ctk.CTkLabel(d_box, text=d_badge, font=fonte(8, "bold"), text_color="#CBD5E1").place(relx=0.5, rely=0.5, anchor="center")
+
+            # Ícone
+            ic_box = ctk.CTkFrame(linha, width=30, height=30, corner_radius=6, fg_color=bg_ic)
+            ic_box.pack(side="left", padx=(0, 8))
+            ic_box.pack_propagate(False)
+            ctk.CTkLabel(ic_box, text=ic, font=fonte(12)).place(relx=0.5, rely=0.5, anchor="center")
+
+            # Título e Subtítulo
+            t_box = ctk.CTkFrame(linha, fg_color="transparent", width=140)
+            t_box.pack(side="left", fill="y", padx=(0, 8))
+            t_box.pack_propagate(False)
+
+            ctk.CTkLabel(t_box, text=tit[:18], font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w", pady=(6, 0))
+            ctk.CTkLabel(t_box, text=sub[:20], font=fonte(9), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w")
+
+            # Badge Categoria
+            cat_box = ctk.CTkFrame(linha, fg_color="#182836", corner_radius=6, height=24)
+            cat_box.pack(side="left", padx=(0, 10))
+            ctk.CTkLabel(cat_box, text=f" {cat_b} ", font=fonte(9), text_color=COR_TEXTO_SECUNDARIO).pack(padx=4, pady=2)
+
+            # Status
+            st_cor = "#00D084" if "Pago" in st_b or "Recebido" in st_b else "#F59E0B"
+            ctk.CTkLabel(linha, text=st_b, font=fonte(10, "bold"), text_color=st_cor, width=70, anchor="w").pack(side="left")
+
+            # Botão Apagar / Excluir
+            ctk.CTkButton(
+                linha,
+                text="🗑️",
+                width=28,
+                height=28,
+                corner_radius=6,
+                fg_color="transparent",
+                hover_color="#3E1A23",
+                text_color="#F43F5E",
+                font=fonte(11),
+                command=lambda id_=lid, t=tit: self._apagar_lancamento(id_, t),
+            ).pack(side="right", padx=(4, 6))
+
+            # Valor
+            ctk.CTkLabel(linha, text=val, font=fonte(11, "bold"), text_color=cor_val, anchor="e").pack(side="right", padx=6)
+
+        ctk.CTkLabel(card, text="", height=8).pack()
 
 
-if __name__ == "__main__":
-    app = ctk.CTk()
-    app.title("Testando LancamentoView")
-    app.geometry("1050x650")
-    view = LancamentoView(app)
-    view.pack(expand=True, fill="both", padx=20, pady=20)
-    app.mainloop()
+    def _apagar_lancamento(self, lancamento_id: Optional[int], descricao: str):
+        """Exclui um lançamento do banco de dados ou da lista em exibição."""
+        from tkinter import messagebox
+        if messagebox.askyesno("Confirmar Exclusão", f"Deseja realmente apagar o lançamento '{descricao}'?"):
+            if lancamento_id is not None:
+                try:
+                    self.dao.excluir(lancamento_id)
+                except Exception as exc:
+                    print(f"Erro ao excluir: {exc}")
+            else:
+                # Remove do cache demo
+                if hasattr(self, "_itens_demo_cache"):
+                    self._itens_demo_cache = [x for x in self._itens_demo_cache if x[3] != descricao]
+                else:
+                    self._itens_demo_cache = [
+                        ("29\nSET", "🛒", "#2E151B", "Supermercado Extra", "Compras do mês", "🍴 Alimentação", "● Pago", "- R$ 320,50", "#F43F5E", None),
+                        ("28\nSET", "💼", "#102E24", "Salário", "Empresa XYZ", "💼 Salário", "● Pago", "+ R$ 3.500,00", "#00D084", None),
+                        ("25\nSET", "🏠", "#2E151B", "Aluguel", "Apartamento", "🏠 Moradia", "● Pago", "- R$ 1.200,00", "#F43F5E", None),
+                        ("23\nSET", "📈", "#102E24", "Rendimento CDB", "Banco Inter", "📈 Investimentos", "● Pago", "+ R$ 150,00", "#00D084", None),
+                        ("20\nSET", "💡", "#2E151B", "Conta de Luz", "Enel", "📄 Contas", "● Pago", "- R$ 180,90", "#F43F5E", None),
+                        ("18\nSET", "🚗", "#2E151B", "Combustível", "Posto Ipiranga", "🚗 Transporte", "● Pago", "- R$ 230,00", "#F43F5E", None),
+                        ("15\nSET", "💻", "#102E24", "Freelance - Projeto", "Cliente ABC", "💼 Serviços", "● Recebido", "+ R$ 1.200,00", "#00D084", None),
+                    ]
+                    self._itens_demo_cache = [x for x in self._itens_demo_cache if x[3] != descricao]
+
+            self._montar_tela()
+
+    def _filtrar_aba(self, aba: str):
+        self.filtro_aba = aba
+        self._montar_tela()

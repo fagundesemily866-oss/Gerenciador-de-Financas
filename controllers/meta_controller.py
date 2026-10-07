@@ -24,4 +24,4 @@ class MetaController:
         return self.meta.guardar_valor(quantia)
 
     def calcular_progresso(self):
-        return self.meta.calcular_progresso()
+        return self.meta.calcular_progresso()

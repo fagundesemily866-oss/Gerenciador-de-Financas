@@ -18,4 +18,4 @@ class TerceiroController:
         return self.terceiro.eh_valido()
 
     def exibir_terceiro(self):
-        return self.terceiro.formartar_exibicao()
+        return self.terceiro.formartar_exibicao()

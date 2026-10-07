@@ -7,6 +7,7 @@ na tabela 'saude_financeira' do SQLite.
 from datetime import date
 from typing import List, Optional, Dict, Any
 from models.database import Database
+from services.sessao import resolver_usuario
 from models.saude_financeira import SaudeFinanceira
 
 
@@ -25,6 +26,7 @@ class SaudeFinanceiraDAO:
     ) -> int:
         """Registra uma nova avaliação de saúde financeira."""
         data_atualizacao = data_atualizacao or date.today().strftime("%Y-%m-%d")
+        usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         cursor = conn.execute(
             """
@@ -40,6 +42,7 @@ class SaudeFinanceiraDAO:
         self, usuario_id: Optional[int] = None
     ) -> Optional[Dict[str, Any]]:
         """Retorna o registro mais recente de saúde financeira do usuário."""
+        usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
@@ -66,6 +69,7 @@ class SaudeFinanceiraDAO:
         self, usuario_id: Optional[int] = None, limite: int = 10
     ) -> List[Dict[str, Any]]:
         """Retorna o histórico de avaliações de saúde financeira."""
+        usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
@@ -99,6 +103,7 @@ class SaudeFinanceiraDAO:
 
     def existe_dados(self, usuario_id: Optional[int] = None) -> bool:
         """Verifica se há avaliações registradas."""
+        usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(

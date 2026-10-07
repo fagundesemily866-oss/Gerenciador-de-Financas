@@ -5,6 +5,7 @@ Responsável por operações de persistência e consulta na tabela 'categorias' 
 """
 from typing import List, Optional, Dict, Any
 from models.database import Database
+from services.sessao import resolver_usuario
 from models.categoria import Categoria
 
 
@@ -23,6 +24,7 @@ class CategoriaDAO:
         usuario_id: Optional[int] = None,
     ) -> int:
         """Insere uma nova categoria e retorna o ID gerado."""
+        usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         cursor = conn.execute(
             """
@@ -49,6 +51,7 @@ class CategoriaDAO:
 
     def listar_todas(self, usuario_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """Retorna todas as categorias, opcionalmente filtrando por usuário."""
+        usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
@@ -74,6 +77,7 @@ class CategoriaDAO:
         self, tipo: str, usuario_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """Retorna categorias filtradas pelo tipo ('Receita' ou 'Despesa')."""
+        usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
@@ -137,6 +141,7 @@ class CategoriaDAO:
 
     def existe_dados(self, usuario_id: Optional[int] = None) -> bool:
         """Verifica se existem categorias cadastradas."""
+        usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
