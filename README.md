@@ -96,7 +96,7 @@ As principais tabelas são **usuario, categoria, lancamento, terceiro, meta_rese
 
 O diagrama abaixo mostra as principais tabelas e como seus registros se relacionam. As ligações representam os vínculos entre usuários, categorias, lançamentos, metas e os demais dados financeiros.
 
-![Diagrama lógico atualizado do banco de dados](docs/imagens/diagrama_logico_banco.png)
+![Diagrama lógico atualizado do banco de dados](docs/imagens/diagrama_logico_banco_v2.png)
 
 ## 🛠️ Tecnologias utilizadas
 
