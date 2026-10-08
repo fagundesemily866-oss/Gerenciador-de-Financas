@@ -61,7 +61,7 @@ class LancamentoDAO:
     def _resolver_categoria(self, conn, nome_categoria: str, usuario_id: Optional[int], tipo: str) -> int:
         """Busca id_categoria pelo nome. Cria a categoria se não existir."""
         cursor = conn.execute(
-            "SELECT id_categoria FROM categoria WHERE nome = %s AND id_usuario = %s AND tipo = %s LIMIT 1",
+            "SELECT id_categoria FROM categoria WHERE nome = %s AND id_usuario = %s AND tipo = %s AND ativa = 1 LIMIT 1",
             (nome_categoria.strip(), usuario_id, _tipo_db(tipo)),
         )
         row = cursor.fetchone()
@@ -143,9 +143,15 @@ class LancamentoDAO:
         return cursor.rowcount > 0
 
     def excluir(self, lancamento_id: int) -> bool:
-        """Exclui um lançamento pelo ID."""
+        """Exclui somente um lançamento pertencente à conta autenticada."""
+        usuario_id = resolver_usuario()
+        if usuario_id is None:
+            raise ValueError("Faça login para excluir um lançamento.")
         conn = self.db.get_connection()
-        cursor = conn.execute("DELETE FROM lancamento WHERE id_lancamento = %s", (lancamento_id,))
+        cursor = conn.execute(
+            "DELETE FROM lancamento WHERE id_lancamento = %s AND id_usuario = %s",
+            (lancamento_id, usuario_id),
+        )
         conn.commit()
         return cursor.rowcount > 0
 

@@ -348,13 +348,25 @@ class TerceiroView(ctk.CTkFrame):
 
     def _apagar_terceiro(self, terceiro_id: Optional[int], nome: str):
         from tkinter import messagebox
-        if messagebox.askyesno("Confirmar Exclusão", f"Deseja realmente apagar o contato '{nome}'?"):
-            if terceiro_id is not None:
-                try:
-                    self.dao.excluir(terceiro_id)
-                except Exception as exc:
-                    print(f"Erro ao excluir terceiro: {exc}")
-            self._montar_tela()
+        if terceiro_id is None:
+            messagebox.showerror("Excluir contato", "Contato sem identificador válido.", parent=self.winfo_toplevel())
+            return
+        if not messagebox.askyesno(
+            "Confirmar exclusão", f"Excluir definitivamente o contato '{nome}'?\n"
+            "Os lançamentos existentes continuarão salvos, sem vínculo com o contato.",
+            parent=self.winfo_toplevel(),
+        ):
+            return
+        try:
+            removido = self.dao.excluir(terceiro_id)
+        except Exception as exc:
+            messagebox.showerror("Erro ao excluir contato", str(exc), parent=self.winfo_toplevel())
+            return
+        if not removido:
+            messagebox.showwarning("Contato não encontrado", "Ele já foi excluído ou pertence a outra conta.", parent=self.winfo_toplevel())
+            return
+        self._montar_tela()
+        messagebox.showinfo("Contato excluído", "Contato removido com sucesso.", parent=self.winfo_toplevel())
 
     def _set_filtro(self, f: str):
         self.filtro_tipo = f

@@ -19,10 +19,11 @@ from tkinter import filedialog
 import customtkinter as ctk
 
 from dao.usuario_dao import UsuarioDAO
-from services.foto_perfil import avatar_circular, carregar_foto, salvar_foto
+from services.foto_perfil import carregar_foto, salvar_foto
+from views.avatar_widget import AvatarCircularCanvas
 from views.tema import (
     COR_CARD, COR_CARD_INTERNO, COR_BORDA, COR_TEXTO_PRINCIPAL,
-    COR_TEXTO_SECUNDARIO, COR_TEXTO_MUTED,
+    COR_TEXTO_SECUNDARIO, COR_TEXTO_MUTED, COR_AVATAR_BG, COR_AVATAR_TEXTO, COR_ACENTO_PRIMARIO,
     fonte,
 )
 
@@ -107,8 +108,7 @@ class UsuarioView(ctk.CTkFrame):
 
         # Avatar grande do perfil (label do círculo + imagem; a referência da imagem
         # precisa ficar guardada, senão o Python a descarta e o círculo fica vazio)
-        self.lbl_avatar_perfil = None
-        self.avatar_perfil_image = None
+        self.avatar_perfil = None
 
         self._scroll = None
         self._aviso_job = None
@@ -237,24 +237,14 @@ class UsuarioView(ctk.CTkFrame):
         return (partes[0][0] + partes[-1][0]).upper()
 
     def _aplicar_foto_no_avatar(self, imagem_pil: Image.Image):
-        """Recorta a imagem em círculo e coloca no avatar grande do perfil."""
-        if self.lbl_avatar_perfil is None:
+        """Atualiza a foto já recortada no Canvas circular sem quadrados."""
+        if self.avatar_perfil is None:
             return
         try:
-            if not self.lbl_avatar_perfil.winfo_exists():
-                return
+            if self.avatar_perfil.winfo_exists():
+                self.avatar_perfil.mostrar_foto(imagem_pil)
         except Exception:
             return
-
-        tamanho = self.AVATAR_TAMANHO
-        img = avatar_circular(imagem_pil, tamanho)
-
-        self.avatar_perfil_image = ctk.CTkImage(
-            light_image=img,
-            dark_image=img,
-            size=(tamanho, tamanho),
-        )
-        self.lbl_avatar_perfil.configure(image=self.avatar_perfil_image, text="")
 
     def _build_hero_banner(self, parent):
         card = ctk.CTkFrame(
@@ -271,29 +261,32 @@ class UsuarioView(ctk.CTkFrame):
         inner.pack(fill="x", padx=20, pady=18)
         inner.grid_columnconfigure(1, weight=1)
 
-        # Avatar Circular Grande
-        av_box = ctk.CTkFrame(inner, width=80, height=80, corner_radius=40, fg_color="#0F3836", border_width=2, border_color="#00D084")
-        av_box.grid(row=0, column=0, rowspan=2, padx=(0, 16))
-        av_box.pack_propagate(False)
-
-        self.lbl_avatar_perfil = ctk.CTkLabel(
-            av_box,
-            text=self._iniciais_usuario(),
-            font=fonte(22, "bold"),
-            text_color="#00D084",
-            width=self.AVATAR_TAMANHO,
-            height=self.AVATAR_TAMANHO,
-            fg_color="transparent",
+        # Avatar: Canvas circular com fundo igual ao card, sem CTkLabel
+        # quadrada cobrindo a borda e a imagem.
+        av_box = ctk.CTkFrame(
+            inner, width=84, height=84, fg_color="transparent", corner_radius=0
         )
-        self.lbl_avatar_perfil.place(relx=0.5, rely=0.5, anchor="center")
+        av_box.grid(row=0, column=0, rowspan=2, padx=(0, 16))
+        av_box.grid_propagate(False)
 
-        # Botão Câmera sobreposto
+        self.avatar_perfil = AvatarCircularCanvas(
+            av_box,
+            tamanho=80,
+            iniciais=self._iniciais_usuario(),
+            fundo_externo=COR_CARD,
+            fundo_interno=COR_AVATAR_BG,
+            cor_borda=COR_ACENTO_PRIMARIO,
+            cor_texto=COR_AVATAR_TEXTO,
+        )
+        self.avatar_perfil.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Botão de câmera por cima, sem esconder o centro da foto.
         btn_cam = ctk.CTkButton(
             av_box, text="📷", width=24, height=24, corner_radius=12,
-            fg_color="#102F33", hover_color="#18484E", text_color="#FFFFFF", font=fonte(10),
-            command=self._trocar_foto,
+            fg_color="#102F33", hover_color="#18484E", text_color="#FFFFFF",
+            font=fonte(10), command=self._trocar_foto,
         )
-        btn_cam.place(relx=0.85, rely=0.85, anchor="center")
+        btn_cam.place(relx=0.86, rely=0.86, anchor="center")
 
         # Recupera a foto do MySQL/disco mesmo após fechar e reabrir o aplicativo.
         foto_salva = carregar_foto(self.usuario_atual.get("foto_perfil"))
@@ -778,7 +771,12 @@ class UsuarioView(ctk.CTkFrame):
             self._notificar("Exclusão de conta ainda não disponível no UsuarioDAO.", ok=False)
             return
         try:
-            excluir(self.usuario_atual.get("id", 1))
+            usuario_id = self.usuario_atual.get("id")
+            if usuario_id is None:
+                raise ValueError("Não foi possível identificar a conta logada.")
+            removida = excluir(usuario_id)
+            if not removida:
+                raise ValueError("A conta já foi excluída ou não foi encontrada.")
         except Exception as e:
             self._notificar(f"Não foi possível excluir a conta: {e}", ok=False)
             return

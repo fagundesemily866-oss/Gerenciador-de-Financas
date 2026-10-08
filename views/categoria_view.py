@@ -318,13 +318,26 @@ class CategoriaView(ctk.CTkFrame):
 
     def _apagar_categoria(self, categoria_id: Optional[int], nome: str):
         from tkinter import messagebox
-        if messagebox.askyesno("Confirmar Exclusão", f"Deseja realmente apagar a categoria '{nome}'?"):
-            if categoria_id is not None:
-                try:
-                    self.dao.excluir(categoria_id)
-                except Exception as exc:
-                    print(f"Erro ao excluir categoria: {exc}")
-            self._montar_tela()
+        if categoria_id is None:
+            messagebox.showerror("Excluir categoria", "Categoria sem identificador válido.", parent=self.winfo_toplevel())
+            return
+        if not messagebox.askyesno(
+            "Arquivar categoria",
+            f"Remover '{nome}' da lista de categorias?\n\n"
+            "Lançamentos antigos continuam salvos, com a categoria original.",
+            parent=self.winfo_toplevel(),
+        ):
+            return
+        try:
+            removida = self.dao.excluir(categoria_id)
+        except Exception as exc:
+            messagebox.showerror("Erro ao remover categoria", str(exc), parent=self.winfo_toplevel())
+            return
+        if not removida:
+            messagebox.showwarning("Categoria não encontrada", "Ela já foi removida ou pertence a outra conta.", parent=self.winfo_toplevel())
+            return
+        self._montar_tela()
+        messagebox.showinfo("Categoria removida", "Categoria arquivada. Seu histórico financeiro foi preservado.", parent=self.winfo_toplevel())
 
     def _set_filtro(self, f: str):
         self.filtro_tipo = f

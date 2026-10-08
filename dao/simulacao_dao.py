@@ -125,8 +125,14 @@ class SimulacaoDAO:
         return cursor.rowcount > 0
 
     def deletar(self, simulacao_id: int) -> bool:
-        """Exclui uma simulação pelo ID."""
+        """Exclui registro apenas da conta logada."""
+        usuario_id = resolver_usuario()
+        if usuario_id is None:
+            raise ValueError("Faça login para excluir este registro.")
         conn = self.db.get_connection()
-        cursor = conn.execute("DELETE FROM simulacao WHERE id_simulacao = %s", (simulacao_id,))
+        cursor = conn.execute(
+            "DELETE FROM simulacao WHERE id_simulacao = %s AND id_usuario = %s",
+            (simulacao_id, usuario_id),
+        )
         conn.commit()
         return cursor.rowcount > 0

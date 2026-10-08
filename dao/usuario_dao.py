@@ -190,11 +190,39 @@ class UsuarioDAO:
         return cursor.rowcount > 0
 
     def excluir(self, usuario_id: int) -> bool:
-        """Exclui um usuário pelo ID."""
+        """Exclui a própria conta e suas movimentações em uma transação atômica.
+
+        Lançamentos precisam sair antes das categorias: uma FK categoria->lançamento
+        impede o CASCADE de usuario quando ainda há movimentações vinculadas.
+        """
+        from services.sessao import Sessao
+        if Sessao.usuario_id() is None or int(usuario_id) != Sessao.usuario_id():
+            raise ValueError("Só é possível excluir a conta atualmente conectada.")
         conn = self.db.get_connection()
-        cursor = conn.execute("DELETE FROM usuario WHERE id_usuario = %s", (usuario_id,))
-        conn.commit()
-        return cursor.rowcount > 0
+        try:
+            encontrado = conn.execute(
+                "SELECT id_usuario FROM usuario WHERE id_usuario = %s FOR UPDATE",
+                (usuario_id,),
+            ).fetchone()
+            if not encontrado:
+                conn.rollback()
+                return False
+            conn.execute("DELETE FROM lancamento WHERE id_usuario = %s", (usuario_id,))
+            cursor = conn.execute("DELETE FROM usuario WHERE id_usuario = %s", (usuario_id,))
+            if cursor.rowcount != 1:
+                raise RuntimeError("A conta não pôde ser excluída.")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        # Esta etapa é externa à transação: nunca sinalize rollback após commit.
+        try:
+            from services.foto_perfil import limpar_fotos_usuario
+            limpar_fotos_usuario(usuario_id)
+        except Exception:
+            import logging
+            logging.warning("Não foi possível limpar todas as fotos locais da conta %s", usuario_id, exc_info=True)
+        return True
 
     def existe_dados(self) -> bool:
         """Verifica se há pelo menos um usuário cadastrado."""

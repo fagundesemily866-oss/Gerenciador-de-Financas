@@ -78,6 +78,10 @@ class _ConnectionProxy:
         self._conn.commit()
         Database._versao_contador += 1
 
+    def rollback(self):
+        """Reverte mudanças não confirmadas (exclusões compostas de conta)."""
+        self._conn.rollback()
+
     def close(self):
         try:
             self._conn.close()
@@ -256,6 +260,17 @@ class Database:
         except Exception:
             pass
 
+        # Migração não destrutiva: categorias utilizadas continuam associadas
+        # aos lançamentos, mas podem sumir das listas após arquivamento.
+        ativo = conn.execute("""
+            SELECT COUNT(*) AS total FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'categoria'
+              AND COLUMN_NAME = 'ativa'
+        """).fetchone()["total"]
+        if not ativo:
+            conn.execute(
+                "ALTER TABLE categoria ADD COLUMN ativa BOOLEAN NOT NULL DEFAULT TRUE"
+            )
         conn.commit()
 
     # ------------------------------------------------------------------

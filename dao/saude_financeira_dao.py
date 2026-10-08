@@ -98,9 +98,15 @@ class SaudeFinanceiraDAO:
         return cursor.fetchall()
 
     def excluir(self, saude_id: int) -> bool:
-        """Exclui um registro de saúde financeira pelo ID."""
+        """Exclui registro apenas da conta logada."""
+        usuario_id = resolver_usuario()
+        if usuario_id is None:
+            raise ValueError("Faça login para excluir este registro.")
         conn = self.db.get_connection()
-        cursor = conn.execute("DELETE FROM saude_financeira WHERE id_saude = %s", (saude_id,))
+        cursor = conn.execute(
+            "DELETE FROM saude_financeira WHERE id_saude = %s AND id_usuario = %s",
+            (saude_id, usuario_id),
+        )
         conn.commit()
         return cursor.rowcount > 0
 

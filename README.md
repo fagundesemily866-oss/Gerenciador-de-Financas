@@ -75,7 +75,7 @@ Na primeira execução, escolha **Criar Conta** para começar com seus próprios
 | **Lançamentos** | **Metas** |
 | ![Lançamentos](docs/imagens/05_lancamentos.png) | ![Metas](docs/imagens/06_metas.png) |
 | **Simulador — Visão por Metas** | **Relatório Mensal** |
-| ![Simulador](docs/imagens/03_simulador_visao_metas.png) |
+| ![Simulador](docs/imagens/03_simulador_visao_metas.png) | ![Relatório](docs/imagens/07_relatorio.png) |
 | **Categorias** | **Meu Perfil** |
 | ![Categorias](docs/imagens/08_categorias.png) | ![Meu Perfil](docs/imagens/09_meu_perfil.png) |
 
@@ -121,3 +121,14 @@ python -m unittest discover -s tests
 As imagens escolhidas no Perfil e em Terceiros são copiadas para `data/perfis/` e `data/terceiros/`. O MySQL guarda o caminho correspondente, e as fotos são carregadas automaticamente nos próximos acessos. **Não exclua essas pastas ao atualizar o projeto**: elas contêm fotos reais e são ignoradas pelo Git para proteger a privacidade. Ao transferir os dados para outro computador, copie também essas pastas (além de configurar o mesmo banco de dados ou importar seu backup).
 
 Os testes em `tests/` usam dados em memória ou conexões simuladas e não alteram contas reais. Os testes antigos para SQLite estão preservados em `tests/legacy_sqlite/` e não são executados por padrão.
+
+### Exclusões de registros
+
+Ao excluir **lançamentos, metas, contatos e cenários**, o programa solicita confirmação
+antes de remover os dados. Metas excluídas também removem seus aportes associados.
+Para preservar relatórios passados, **categorias utilizadas são arquivadas**: deixam
+as listas de cadastro, mas continuam associadas às movimentações antigas.
+
+Na primeira execução após esta atualização, o aplicativo acrescenta automaticamente
+a coluna `categoria.ativa` ao MySQL, sem apagar seus registros. Recomenda-se fazer
+um backup do banco antes de atualizar uma instalação existente.

@@ -430,9 +430,15 @@ class MetaDAO:
         }
 
     def excluir(self, meta_id: int) -> bool:
-        """Exclui uma meta pelo ID."""
+        """Exclui registro apenas da conta logada."""
+        usuario_id = resolver_usuario()
+        if usuario_id is None:
+            raise ValueError("Faça login para excluir este registro.")
         conn = self.db.get_connection()
-        cursor = conn.execute("DELETE FROM meta_reserva WHERE id_meta = %s", (meta_id,))
+        cursor = conn.execute(
+            "DELETE FROM meta_reserva WHERE id_meta = %s AND id_usuario = %s",
+            (meta_id, usuario_id),
+        )
         conn.commit()
         return cursor.rowcount > 0
 

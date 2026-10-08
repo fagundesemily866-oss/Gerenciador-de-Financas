@@ -3,6 +3,7 @@ View de Metas Financeiras — Com dados reais, celebração de meta atingida e m
 """
 import re
 import tkinter as tk
+from tkinter import messagebox
 from datetime import datetime, date
 from typing import Optional, List
 import customtkinter as ctk
@@ -184,12 +185,8 @@ class MetaView(ctk.CTkFrame):
             font=fonte(11, "bold"), command=confirmar).pack(pady=14, padx=30, fill="x")
 
     def _on_excluir_meta(self, meta_id: int):
-        try:
-            self.dao.marcar_celebracao_exibida(meta_id)
-            self.dao.excluir(meta_id)
-        except Exception:
-            pass
-        self._montar_tela()
+        # A tela de celebração chama o mesmo fluxo de exclusão com confirmação.
+        self._confirmar_excluir(meta_id)
 
     def _on_manter_meta(self, meta_id: int):
         try:
@@ -447,11 +444,22 @@ class MetaView(ctk.CTkFrame):
             ).pack(fill="x", padx=12, pady=(0, 10))
 
     def _confirmar_excluir(self, meta_id: int):
+        if not messagebox.askyesno(
+            "Excluir meta", "Deseja excluir esta meta e todo o histórico de aportes dela?",
+            parent=self.winfo_toplevel(),
+        ):
+            return
         try:
-            self.dao.excluir(meta_id)
-        except Exception:
-            pass
+            excluida = self.dao.excluir(meta_id)
+        except Exception as exc:
+            messagebox.showerror("Erro ao excluir meta", str(exc), parent=self.winfo_toplevel())
+            return
+        if not excluida:
+            messagebox.showwarning("Meta não encontrada", "Esta meta já foi removida ou pertence a outra conta.", parent=self.winfo_toplevel())
+            return
+        self._aguardando_celebracao = [i for i in self._aguardando_celebracao if i != meta_id]
         self._montar_tela()
+        messagebox.showinfo("Meta excluída", "Meta e aportes removidos com sucesso.", parent=self.winfo_toplevel())
 
     def _guardar_valor_dialog(self, meta_id: int):
         dialog = ctk.CTkToplevel(self.winfo_toplevel())

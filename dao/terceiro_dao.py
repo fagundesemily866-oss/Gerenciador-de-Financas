@@ -108,11 +108,25 @@ class TerceiroDAO:
         return cursor.rowcount > 0
 
     def excluir(self, terceiro_id: int) -> bool:
-        """Exclui um terceiro pelo ID."""
+        """Exclui registro apenas da conta logada."""
+        usuario_id = resolver_usuario()
+        if usuario_id is None:
+            raise ValueError("Faça login para excluir este registro.")
         conn = self.db.get_connection()
-        cursor = conn.execute("DELETE FROM terceiro WHERE id_terceiro = %s", (terceiro_id,))
+        cursor = conn.execute(
+            "DELETE FROM terceiro WHERE id_terceiro = %s AND id_usuario = %s",
+            (terceiro_id, usuario_id),
+        )
         conn.commit()
-        return cursor.rowcount > 0
+        removido = cursor.rowcount > 0
+        if removido:
+            try:
+                from services.foto_perfil import limpar_fotos_terceiro
+                limpar_fotos_terceiro(terceiro_id)
+            except OSError:
+                import logging
+                logging.warning("Não foi possível limpar todas as fotos locais do contato %s", terceiro_id)
+        return removido
 
     def existe_dados(self, usuario_id: Optional[int] = None) -> bool:
         """Verifica se existem terceiros cadastrados."""

@@ -909,12 +909,14 @@ class LancamentoView(ctk.CTkFrame):
     def _apagar_lancamento(self, item: Dict[str, Any]):
         """Exclui exclusivamente lançamentos que existem no MySQL."""
         descricao = item.get("descricao", "")
-        if not messagebox.askyesno("Confirmar Exclusão", f"Deseja realmente apagar o lançamento '{descricao}'?"):
+        if not messagebox.askyesno("Confirmar Exclusão", f"Deseja realmente apagar o lançamento '{descricao}'?", parent=self.winfo_toplevel()):
             return
 
         if item.get("id") is not None:
             try:
-                self.dao.excluir(item["id"])
+                if not self.dao.excluir(item["id"]):
+                    self._notificar("Lançamento não encontrado ou de outra conta.", ok=False)
+                    return
             except Exception as exc:
                 self._notificar(f"Não foi possível excluir: {exc}", ok=False)
                 return

@@ -4,7 +4,8 @@ import time
 from views.notificacao_toast import GerenciadorNotificacoes
 import customtkinter as ctk
 from PIL import Image
-from services.foto_perfil import avatar_circular, carregar_foto
+from services.foto_perfil import carregar_foto
+from views.avatar_widget import AvatarCircularCanvas
 
 from models.database import Database
 
@@ -484,17 +485,17 @@ class MenuView(ctk.CTkFrame):
         partes_nome = nome_completo.split()
         iniciais = (partes_nome[0][0] + (partes_nome[-1][0] if len(partes_nome) > 1 else "")).upper()
 
-        avatar = ctk.CTkFrame(self.card_user, width=34, height=34, corner_radius=17, fg_color=COR_AVATAR_BG)
-        avatar.grid(row=0, column=0, rowspan=2, padx=(10, 8), pady=8)
-        avatar.grid_propagate(False)
-
-        self.lbl_avatar = ctk.CTkLabel(
-            avatar,
-            text=iniciais,
-            font=fonte(12, "bold"),
-            text_color=COR_AVATAR_TEXTO,
+        avatar = AvatarCircularCanvas(
+            self.card_user,
+            tamanho=34,
+            iniciais=iniciais,
+            fundo_externo=COR_CARD_USER_BG,
+            fundo_interno=COR_AVATAR_BG,
+            cor_borda=COR_AVATAR_TEXTO,
+            cor_texto=COR_AVATAR_TEXTO,
         )
-        self.lbl_avatar.pack(expand=True)
+        avatar.grid(row=0, column=0, rowspan=2, padx=(10, 8), pady=8)
+        self.lbl_avatar = avatar
         foto_persistida = carregar_foto(self.usuario_logado.get("foto_perfil"))
         if foto_persistida is not None:
             self.atualizar_avatar_sidebar(foto_persistida)
@@ -526,7 +527,7 @@ class MenuView(ctk.CTkFrame):
         )
         lbl_seta.grid(row=0, column=2, rowspan=2, padx=(4, 10))
 
-        for widget in [self.card_user, avatar, self.lbl_avatar, lbl_nome, lbl_tipo, lbl_seta]:
+        for widget in [self.card_user, avatar, lbl_nome, lbl_tipo, lbl_seta]:
             widget.bind("<Button-1>", lambda e: self.selecionar("usuario"))
 
         # 3. CONTAINER COM OS BOTÕES DO MENU (ROLÁVEL SE NECESSÁRIO EM TELAS PEQUENAS)
@@ -621,6 +622,8 @@ class MenuView(ctk.CTkFrame):
 
     def _alterar_tema(self, modo: str):
         ctk.set_appearance_mode(modo)
+        if hasattr(self, "lbl_avatar") and self.lbl_avatar.winfo_exists():
+            self.lbl_avatar.atualizar_cores()
         # Limpa views em cache para aplicar as cores do novo tema
         views_antigas = list(self.views.values())
         chave_atual = None
@@ -649,16 +652,9 @@ class MenuView(ctk.CTkFrame):
     # ==============================================================
 
     def atualizar_avatar_sidebar(self, imagem_pil: Image.Image):
-        """Recebe uma imagem PIL e atualiza o avatar circular na sidebar."""
-        imagem_mini = avatar_circular(imagem_pil, 30)
-
-        self.avatar_image = ctk.CTkImage(
-            light_image=imagem_mini,
-            dark_image=imagem_mini,
-            size=(30, 30),
-        )
-
-        self.lbl_avatar.configure(image=self.avatar_image, text="")
+        """Atualiza o círculo lateral, mantendo a foto na conta atual."""
+        if hasattr(self, "lbl_avatar") and self.lbl_avatar.winfo_exists():
+            self.lbl_avatar.mostrar_foto(imagem_pil)
 
     # ==============================================================
     # ÁREA DE CONTEÚDO

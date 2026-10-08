@@ -111,3 +111,30 @@ def salvar_foto_terceiro(terceiro_id: int, caminho_original: str, terceiro_dao) 
         temporario.unlink(missing_ok=True)
         destino.unlink(missing_ok=True)
         raise
+
+
+def limpar_fotos_usuario(usuario_id: int) -> None:
+    """Remove apenas arquivos locais de foto criados para esta conta.
+
+    Não segue caminhos informados pelo banco nem apaga arquivos fora de data/perfis.
+    A execução é feita somente após a confirmação de exclusão no MySQL.
+    """
+    uid = int(usuario_id)
+    if uid <= 0:
+        return
+    if PASTA_FOTOS.is_dir():
+        for arquivo in PASTA_FOTOS.glob(f"usuario_{uid}_*.png"):
+            if arquivo.is_file() and not arquivo.is_symlink():
+                arquivo.unlink()
+
+
+def limpar_fotos_terceiro(terceiro_id: int) -> None:
+    """Remove somente fotos deste contato dentro da pasta gerenciada pelo app."""
+    tid = int(terceiro_id)
+    if tid <= 0:
+        return
+    pasta = RAIZ_PROJETO / "data" / "terceiros"
+    if pasta.is_dir():
+        for arquivo in pasta.glob(f"terceiro_{tid}_*.png"):
+            if arquivo.is_file() and not arquivo.is_symlink():
+                arquivo.unlink()

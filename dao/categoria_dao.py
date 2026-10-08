@@ -41,7 +41,8 @@ _SELECT = """
     nome,
     tipo,
     escopo,
-    limite_orcamento
+    limite_orcamento,
+    ativa
 """
 
 
@@ -75,9 +76,12 @@ class CategoriaDAO:
     def buscar_por_id(self, categoria_id: int) -> Optional[Dict[str, Any]]:
         """Busca uma categoria pelo seu ID."""
         conn = self.db.get_connection()
+        usuario_id = resolver_usuario()
+        if usuario_id is None:
+            raise ValueError("Faça login para acessar categorias.")
         cursor = conn.execute(
-            f"SELECT {_SELECT} FROM categoria WHERE id_categoria = %s",
-            (categoria_id,),
+            f"SELECT {_SELECT} FROM categoria WHERE id_categoria = %s AND id_usuario = %s",
+            (categoria_id, usuario_id),
         )
         return _row(cursor.fetchone())
 
@@ -89,14 +93,14 @@ class CategoriaDAO:
             cursor = conn.execute(
                 f"""
                 SELECT {_SELECT} FROM categoria
-                WHERE id_usuario = %s
+                WHERE id_usuario = %s AND ativa = 1
                 ORDER BY nome ASC
                 """,
                 (usuario_id,),
             )
         else:
             cursor = conn.execute(
-                f"SELECT {_SELECT} FROM categoria ORDER BY nome ASC"
+                f"SELECT {_SELECT} FROM categoria WHERE ativa = 1 ORDER BY nome ASC"
             )
         return [_row(r) for r in cursor.fetchall()]
 
@@ -110,7 +114,7 @@ class CategoriaDAO:
             cursor = conn.execute(
                 f"""
                 SELECT {_SELECT} FROM categoria
-                WHERE (id_usuario = %s) AND tipo = %s
+                WHERE (id_usuario = %s) AND tipo = %s AND ativa = 1
                 ORDER BY nome ASC
                 """,
                 (usuario_id, _tipo_db(tipo)),
@@ -119,7 +123,7 @@ class CategoriaDAO:
             cursor = conn.execute(
                 f"""
                 SELECT {_SELECT} FROM categoria
-                WHERE tipo = %s ORDER BY nome ASC
+                WHERE tipo = %s AND ativa = 1 ORDER BY nome ASC
                 """,
                 (_tipo_db(tipo),),
             )
@@ -158,9 +162,16 @@ class CategoriaDAO:
         return cursor.rowcount > 0
 
     def excluir(self, categoria_id: int) -> bool:
-        """Exclui uma categoria pelo ID."""
+        """Arquiva a categoria mantendo os lançamentos históricos e seus valores."""
+        usuario_id = resolver_usuario()
+        if usuario_id is None:
+            raise ValueError("Faça login para excluir uma categoria.")
         conn = self.db.get_connection()
-        cursor = conn.execute("DELETE FROM categoria WHERE id_categoria = %s", (categoria_id,))
+        cursor = conn.execute(
+            "UPDATE categoria SET ativa = 0 "
+            "WHERE id_categoria = %s AND id_usuario = %s AND ativa = 1",
+            (categoria_id, usuario_id),
+        )
         conn.commit()
         return cursor.rowcount > 0
 
@@ -170,9 +181,9 @@ class CategoriaDAO:
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
-                "SELECT COUNT(*) AS total FROM categoria WHERE id_usuario = %s",
+                "SELECT COUNT(*) AS total FROM categoria WHERE id_usuario = %s AND ativa = 1",
                 (usuario_id,),
             )
         else:
-            cursor = conn.execute("SELECT COUNT(*) AS total FROM categoria")
+            cursor = conn.execute("SELECT COUNT(*) AS total FROM categoria WHERE ativa = 1")
         return cursor.fetchone()["total"] > 0

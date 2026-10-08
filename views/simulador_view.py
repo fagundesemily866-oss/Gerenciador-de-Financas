@@ -407,13 +407,38 @@ class SimuladorView(ctk.CTkFrame):
                 return
             janela.destroy()
 
+        def excluir_cenario(cenario, linha):
+            nome = cenario.get("nome") or "Cenário"
+            if not messagebox.askyesno(
+                "Excluir cenário", f"Excluir definitivamente '{nome}'?",
+                parent=janela,
+            ):
+                return
+            try:
+                removido = self.sim_dao.deletar(cenario["id"])
+            except Exception as exc:
+                messagebox.showerror("Excluir cenário", str(exc), parent=janela)
+                return
+            if not removido:
+                messagebox.showwarning("Cenário não encontrado", "O cenário já foi excluído ou pertence a outra conta.", parent=janela)
+                return
+            linha.destroy()
+            messagebox.showinfo("Cenário excluído", "Cenário excluído com sucesso.", parent=janela)
+
         for cenario in cenarios:
             nome = cenario.get("nome") or f"Cenário {cenario.get('id', '')}"
             data = str(cenario.get("data_criacao") or "")[:16]
+            linha = ctk.CTkFrame(lista, fg_color="transparent")
+            linha.pack(fill="x", pady=4)
             ctk.CTkButton(
-                lista, text=f"{nome}  •  {data}", height=40, anchor="w",
-                command=lambda c=cenario: selecionar_cenario(c)
-            ).pack(fill="x", pady=4)
+                linha, text=f"{nome}  •  {data}", height=40, anchor="w",
+                command=lambda c=cenario: selecionar_cenario(c),
+            ).pack(side="left", fill="x", expand=True)
+            ctk.CTkButton(
+                linha, text="Excluir", width=74, height=40,
+                fg_color="#4A1924", hover_color="#632230",
+                command=lambda c=cenario, l=linha: excluir_cenario(c, l),
+            ).pack(side="right", padx=(6, 0))
         janela.after(100, lambda: janela.winfo_exists() and janela.grab_set())
 
     def _salvar_cenario(self):

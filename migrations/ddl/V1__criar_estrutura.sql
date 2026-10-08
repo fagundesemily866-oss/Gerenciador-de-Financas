@@ -38,6 +38,7 @@ CREATE TABLE categoria (
     tipo ENUM('RECEITA', 'DESPESA') NOT NULL,
     escopo ENUM('PESSOAL', 'PJ') NOT NULL,
     limite_orcamento DECIMAL(10,2),
+    ativa BOOLEAN NOT NULL DEFAULT TRUE,
 
     PRIMARY KEY (id_categoria),
 
