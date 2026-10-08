@@ -82,10 +82,12 @@ As escolhas de idioma e aparência ficam salvas localmente em `data/interface.js
 | ![Dashboard](docs/imagens/01_dashboard_atual.png) | ![Assistente IA](docs/imagens/02_assistente_ia.png) |
 | **Lançamentos** | **Metas** |
 | ![Lançamentos](docs/imagens/05_lancamentos.png) | ![Metas](docs/imagens/06_metas.png) |
-| **Simulador — Visão por Metas** | **Relatório Mensal** |
-| ![Simulador](docs/imagens/03_simulador_visao_metas.png) | ![Relatório](docs/imagens/07_relatorio.png) |
 | **Categorias** | **Meu Perfil** |
 | ![Categorias](docs/imagens/08_categorias.png) | ![Meu Perfil](docs/imagens/09_meu_perfil.png) |
+
+**Simulador — Visão por Metas**
+
+![Simulador — Visão por Metas](docs/imagens/03_simulador_visao_metas.png)
 
 ## 🗃️ Banco de dados e arquitetura
 
