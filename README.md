@@ -4,15 +4,8 @@
 
 Aplicativo desktop para registrar receitas e despesas, controlar orçamentos, acompanhar metas e analisar a saúde financeira. Usa a arquitetura **MVC + DAO** e mantém os dados de cada conta no **MySQL**.
 
-## 🎓 Resumo para a apresentação
+## 📋 Funcionalidades
 
-- **Problema:** dificuldade para acompanhar gastos, limites e objetivos financeiros.
-- **Solução:** reunir movimentações, metas, relatórios e simulações em um único sistema.
-- **Público-alvo:** pessoas, famílias, autônomos e pequenos negócios (personas Helena, Vanessa, Carlos e Ronaldo).
-- **Diferencial:** Saúde Financeira em tela própria, simulador de cenários, assistente com Gemini e contas persistentes.
-- **Origem:** projeto iniciado no PISM e desenvolvido com modelagem no BRModelo.
-
-### Telas do sistema
 
 | Tela | Principal função |
 | --- | --- |
@@ -132,54 +125,6 @@ Sem clicar nesse botão, o aplicativo **não gera movimentações aleatórias au
 
 ---
 
-## 💻 Levar o projeto para o computador do professor
-
-### Opção A — Apresentar com banco novo (mais simples)
-
-1. Copie o **ZIP completo** e extraia no computador do professor.
-2. Instale **Python + MySQL Server** e as bibliotecas do `requirements.txt`.
-3. Configure o `.env` com a senha do **MySQL desse computador**.
-4. Execute `py main.py`. As tabelas serão criadas automaticamente se houver permissões.
-5. Crie uma conta nova **ou** clique em **Gerar dados aleatórios** para uma apresentação com dados de exemplo.
-
-### Opção B — Levar suas contas, metas e lançamentos existentes
-
-As migrations transferem **somente a estrutura** do banco. Para levar dados cadastrados, é necessário **exportar e importar o MySQL**.
-
-**No computador original, com MySQL Workbench:**
-
-1. Conecte-se ao servidor do MySQL.
-2. Vá em **Server → Data Export**.
-3. Selecione o banco `gerenciador_financeiro`, incluindo suas tabelas e dados.
-4. Escolha **Export to Self-Contained File** e, se disponível, inclua a criação do schema para facilitar a restauração.
-5. Clique em **Start Export** e copie o arquivo `.sql` de backup para o computador de destino.
-
-**No computador do professor:**
-
-1. Instale e inicie o MySQL Server.
-2. No Workbench, vá em **Server → Data Import** e selecione o arquivo `.sql` em **Import from Self-Contained File**.
-3. Se o backup não criar o banco automaticamente, crie `gerenciador_financeiro` antes e selecione esse banco como destino.
-4. Execute **Start Import** e confirme que as tabelas e os registros foram restaurados.
-5. Ajuste o `.env` para conectar ao MySQL do professor e execute `py main.py`.
-6. Entre usando o e-mail e a senha de uma conta que foi importada.
-
-**Alternativa via terminal**, se tiver as ferramentas MySQL no PATH (o backup abaixo contém criação do banco):
-
-```bat
-mysqldump -u root -p --databases gerenciador_financeiro > backup_gerenciador.sql
-mysql -u root -p < backup_gerenciador.sql
-```
-
-> Execute o **primeiro comando no computador original** e o **segundo no computador de destino**, após copiar o arquivo de backup. Verifique o destino antes da importação: ela pode alterar ou substituir dados de um banco existente. Faça backup antes.
-
-**Não envie seu `.env` real**, nem compartilhe chaves de API ou senhas do banco. Um backup `.sql` pode conter informações pessoais e hashes de senhas: trate-o como um arquivo privado e use preferencialmente uma conta demonstrativa para apresentação.
-
-### E se os dois computadores precisarem usar a mesma conta?
-
-Eles deverão acessar **o mesmo servidor MySQL** (com conectividade e permissões adequadas), ou você deverá restaurar um backup em cada computador. Copiar apenas a pasta do projeto **não sincroniza** os dados.
-
----
-
 ## 🧪 Testes automatizados
 
 Com o terminal aberto na pasta do projeto:
@@ -229,5 +174,3 @@ Gerenciador-de-Financas/
 - Não inclui servidor próprio nem sincronização em nuvem: os dados ficam no **MySQL configurado**, que pode ser local ou remoto.
 - O Gemini é opcional e requer internet e uma chave de API válida. O conteúdo das mensagens enviadas ao assistente pode ser processado pelo serviço externo; não inclua dados pessoais sensíveis nas perguntas.
 - Para impedir perda de informações, faça **backups periódicos do MySQL**.
-
-**Para apresentar em sala:** instale com antecedência, teste o login, deixe uma conta de demonstração preparada e mostre o fluxo **Lançamento → Dashboard → Saúde Financeira → Meta → Simulador → Relatório**.
