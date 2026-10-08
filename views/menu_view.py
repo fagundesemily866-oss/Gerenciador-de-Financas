@@ -55,9 +55,6 @@ def _import_view_class(chave: str):
     return getattr(modulo, classe_nome)
 
 
-
-
-
 class EmConstrucaoView(ctk.CTkFrame):
     """Placeholder para as views que ainda não foram implementadas."""
 
@@ -162,6 +159,7 @@ class MenuView(ctk.CTkFrame):
         self._sidebar_x = 0                 # deslocamento horizontal atual da sidebar (0 = visível)
         self._anim_sidebar_id = None
         self._animando_sidebar = False
+        self._largura_aplicada = None       # última largura aplicada via configure (evita redesenho a cada frame)
 
         # Controle de recarga e preload das telas
         self._versao_view = {}              # chave -> versão dos dados no último build/refresh
@@ -193,10 +191,6 @@ class MenuView(ctk.CTkFrame):
     # SIDEBAR
     # ==============================================================
 
-    # ==============================================================
-    # SIDEBAR
-    # ==============================================================
-
     def _on_resize(self, event=None):
         """Recolhe automaticamente a sidebar quando a janela fica muito estreita."""
         if self._sidebar_oculta or self._animando_sidebar:
@@ -215,8 +209,18 @@ class MenuView(ctk.CTkFrame):
         return self.SIDEBAR_LARGURA if self._sidebar_expandida else self.SIDEBAR_MINI
 
     def _posicionar_sidebar(self):
-        """A sidebar é posicionada com place(): x negativo a faz 'sair' pela borda esquerda."""
-        self.sidebar.place(x=self._sidebar_x, y=0, relheight=1, width=self._largura_sidebar())
+        """
+        A sidebar é posicionada com place(): x negativo a faz 'sair' pela borda esquerda.
+
+        CORREÇÃO: o CustomTkinter não aceita width/height no place(); a largura precisa
+        ser definida via configure(). Só reconfiguramos quando a largura realmente muda,
+        para não redesenhar o frame a cada passo da animação.
+        """
+        largura = self._largura_sidebar()
+        if self._largura_aplicada != largura:
+            self.sidebar.configure(width=largura)
+            self._largura_aplicada = largura
+        self.sidebar.place(x=self._sidebar_x, y=0, relheight=1)
         self.sidebar.lift()
 
     def _reservar_espaco_sidebar(self, largura: int):
@@ -340,11 +344,13 @@ class MenuView(ctk.CTkFrame):
         except Exception:
             pass
         # Botões restauram texto completo
+        # (width=0 pode deixar o botão minúsculo no CustomTkinter; usamos uma largura
+        # próxima da útil da sidebar e o fill="x" do pack cuida do resto)
         for chave, botao in self.botoes.items():
             botao.configure(
                 text=getattr(botao, "_texto_completo", chave),
                 anchor="w",
-                width=0,
+                width=self.SIDEBAR_LARGURA - 40,
             )
         self._btn_toggle.configure(text="‹")
         if reposicionar:
@@ -373,10 +379,13 @@ class MenuView(ctk.CTkFrame):
             corner_radius=0,
             fg_color=COR_SIDEBAR,
         )
+        # Mantém a largura definida, sem encolher para caber nos filhos
+        # (feito ANTES do primeiro posicionamento)
+        self.sidebar.pack_propagate(False)
+
         # Posicionada com place(): permite deslizar (x negativo) sem recalcular o layout a cada frame
         self.grid_columnconfigure(0, minsize=self.SIDEBAR_LARGURA, weight=0)
         self._posicionar_sidebar()
-        self.sidebar.pack_propagate(False)
 
         # Botão para reabrir a sidebar quando ela está oculta (☰)
         self.btn_reabrir = ctk.CTkButton(
@@ -864,4 +873,4 @@ if __name__ == "__main__":
         fill="both"
     )
 
-    app.mainloop()
+    app.mainloop()
