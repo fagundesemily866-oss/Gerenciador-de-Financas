@@ -1,43 +1,52 @@
 # 💰 Gerenciador de Finanças Pessoais
 
-Aplicativo desktop feito em **Python + CustomTkinter**, com **MySQL**, para organizar receitas, despesas, metas e orçamentos. Possui contas individuais, relatórios e um assistente financeiro com **Google Gemini**.
+Aplicação desktop desenvolvida em **Python e CustomTkinter**, com banco de dados **MySQL**, para ajudar pessoas e pequenos negócios a organizar suas finanças. O sistema reúne receitas, despesas, metas, relatórios e simulações em uma interface única, com um **assistente financeiro com IA** como recurso opcional.
 
 ## 🎯 Problema e objetivo
 
-**Problema:** é difícil controlar o orçamento quando receitas e gastos ficam espalhados.
+**Problema:** muitas pessoas registram gastos de forma desorganizada e acabam sem saber quanto receberam, quanto gastaram ou quanto ainda podem utilizar no mês.
 
-**Objetivo:** reunir as finanças em um só lugar, facilitar o acompanhamento do dinheiro e ajudar na tomada de decisões.
+**Objetivo:** centralizar essas informações para facilitar o controle do orçamento, acompanhar objetivos financeiros e apoiar decisões de maneira visual e prática. O projeto surgiu a partir de ideias trabalhadas no **PISM**.
 
-## ✨ Funcionalidades
+## ✨ Funcionalidades principais
 
 | Módulo | O que faz |
 | --- | --- |
-| 📊 **Dashboard** | Mostra receitas, despesas, saldo e movimentações recentes. |
-| ❤️ **Saúde Financeira** | Exibe indicadores mensais e orientações financeiras. |
-| 🤖 **Assistente IA** | Responde perguntas e ajuda a analisar os gastos. |
-| 💰 **Lançamentos** | Cadastra, consulta e filtra receitas e despesas. |
-| 🎯 **Metas** | Acompanha objetivos, aportes e progresso. |
-| 🔮 **Simulador** | Compara cenários financeiros futuros. |
-| 📄 **Relatórios** | Apresenta resumos e gráficos do mês. |
-| 🏷️ **Categorias e Terceiros** | Organiza gastos e pessoas ou empresas relacionadas. |
-| 👤 **Meu Perfil** | Permite gerenciar a conta e os dados pessoais. |
+| 📊 **Dashboard** | Reúne receitas, despesas, saldo, movimentações recentes e um resumo das metas. É a visão geral da conta. |
+| ❤️ **Saúde Financeira** | Analisa a situação do mês por meio de indicadores, pontuação e orientações. Quando faltam dados, informa isso sem inventar valores. |
+| 🤖 **Assistente IA** | Ajuda a entender gastos, analisar o orçamento e responder perguntas financeiras. A integração com **Google Gemini** é opcional. |
+| 💰 **Lançamentos** | Permite cadastrar e consultar receitas e despesas, com valor, descrição, categoria, datas, status e filtros. |
+| 🎯 **Metas Financeiras** | Organiza objetivos de economia. O usuário define um valor-alvo, registra aportes e acompanha o progresso até a conclusão. |
+| 🔮 **Simulador de Cenários** | Projeta situações futuras, como redução de gastos, renda extra ou novos aportes. Permite comparar cenários e observar impactos nas metas. |
+| 📄 **Relatório Mensal** | Apresenta um resumo das movimentações do período, gráficos e comparação entre entradas e saídas. |
+| 🤝 **Terceiros** | Cadastra pessoas e estabelecimentos relacionados às movimentações, como clientes e fornecedores. |
+| 🏷️ **Categorias** | Separa receitas e despesas por tipo, como alimentação, moradia e salário, com possibilidade de definir limites de gastos. |
+| 👤 **Meu Perfil** | Permite atualizar dados da conta, renda, senha, foto e o tipo de perfil (**Pessoal** ou **PJ**). |
 
-**As contas ficam salvas no MySQL.** Usuários novos começam sem movimentações; os dados fictícios só são criados pela opção **Gerar dados aleatórios**.
+### Como funciona na prática?
 
-## 🚀 Instalação rápida
+1. O usuário **cria uma conta** e entra no aplicativo.
+2. Cadastra **categorias** e registra suas **receitas e despesas**.
+3. O **Dashboard** e os **Relatórios** mostram para onde o dinheiro está indo.
+4. A **Saúde Financeira** analisa a situação do mês; as **Metas** acompanham objetivos de economia.
+5. O **Simulador** e o **Assistente IA** ajudam a avaliar possibilidades e planejar próximos passos.
+
+**Dados das contas:** os registros ficam salvos no MySQL e são separados por usuário. Uma conta nova começa sem movimentações. A opção **Gerar dados aleatórios** cria dados fictícios apenas quando solicitada.
+
+## 🚀 Instalação e execução
 
 **1. Instale os programas necessários**
 
-- [Python 3.10+](https://www.python.org/downloads/) — marque **Add Python to PATH** na instalação.
-- [MySQL Server](https://dev.mysql.com/downloads/mysql/) — instale e inicie o serviço.
+- [Python 3.10 ou superior](https://www.python.org/downloads/) — no Windows, marque **Add Python to PATH**.
+- [MySQL Server](https://dev.mysql.com/downloads/mysql/) — instale e mantenha o serviço iniciado.
 
-**2. Abra a pasta do projeto no VS Code** e execute no terminal:
+**2. Abra a pasta do projeto no VS Code** e instale as dependências no terminal:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-**3. Configure o banco:** copie `.env.example` para um arquivo chamado `.env` e preencha os dados do seu MySQL:
+**3. Configure o banco de dados:** copie `.env.example` para `.env` na raiz do projeto e edite as informações:
 
 ```env
 MYSQL_HOST=localhost
@@ -48,7 +57,7 @@ MYSQL_DATABASE=gerenciador_financeiro
 AI_API_KEY=
 ```
 
-> `AI_API_KEY` é opcional: serve para usar o Gemini. As tabelas são preparadas automaticamente a partir de `migrations/ddl/`, desde que o usuário do MySQL tenha as permissões necessárias. Não execute o SQL de dados de exemplo se quiser começar do zero.
+> O campo `AI_API_KEY` só precisa ser preenchido para utilizar o Gemini. Com o MySQL conectado e as permissões necessárias, o aplicativo cria automaticamente a estrutura das tabelas definida em `migrations/ddl/`.
 
 **4. Inicie o aplicativo:**
 
@@ -56,33 +65,49 @@ AI_API_KEY=
 python main.py
 ```
 
-Na primeira abertura, **crie sua conta** ou faça login. Para testar sem cadastrar movimentações manualmente, use a opção **Gerar dados aleatórios**.
+Na primeira execução, escolha **Criar Conta** para começar com seus próprios registros ou **Gerar dados aleatórios** para experimentar uma conta de demonstração.
 
 ## 🖼️ Prints do sistema
 
 | Dashboard | Assistente IA |
 | :---: | :---: |
-| ![Dashboard do sistema](docs/imagens/01_dashboard_atual.png) | ![Tela do Assistente IA](docs/imagens/02_assistente_ia.png) |
+| ![Dashboard](docs/imagens/01_dashboard_atual.png) | ![Assistente IA](docs/imagens/02_assistente_ia.png) |
 | **Lançamentos** | **Metas** |
-| ![Tela de lançamentos](docs/imagens/05_lancamentos.png) | ![Tela de metas](docs/imagens/06_metas.png) |
-| **Relatório mensal** | **Categorias** |
-| ![Tela do relatório mensal](docs/imagens/07_relatorio.png) | ![Tela de categorias](docs/imagens/08_categorias.png) |
+| ![Lançamentos](docs/imagens/05_lancamentos.png) | ![Metas](docs/imagens/06_metas.png) |
+| **Simulador — Visão por Metas** | **Relatório Mensal** |
+| ![Simulador](docs/imagens/03_simulador_visao_metas.png) | ![Relatório](docs/imagens/07_relatorio.png) |
+| **Categorias** | **Meu Perfil** |
+| ![Categorias](docs/imagens/08_categorias.png) | ![Meu Perfil](docs/imagens/09_meu_perfil.png) |
 
-## 🛠️ Tecnologias e estrutura
+## 🗃️ Banco de dados e arquitetura
 
-**Python**, **CustomTkinter**, **MySQL**, **Google Gemini**, **python-dotenv** e **unittest**. A organização segue **MVC + DAO**:
+O projeto utiliza a organização **MVC + DAO**, que separa as telas, as regras do sistema e o acesso aos dados:
 
-- `views/`: telas; `controllers/`: controle da aplicação; `models/` e `dao/`: dados e consultas.
-- `services/`: lógica auxiliar e IA; `migrations/`: estrutura do banco; `tests/`: testes.
+- `views/` — interfaces e componentes visuais.
+- `controllers/` — comunicação entre as telas e as operações.
+- `models/` e `dao/` — modelos, conexão e consultas no MySQL.
+- `services/` — cálculos, simulações, segurança e integração de IA.
+- `migrations/` — scripts SQL para criar a estrutura do banco.
+- `tests/` — testes automatizados.
 
-**Diagrama do banco:** [visualizar o modelo lógico](docs/imagens/diagrama_logico_banco.png).
+As principais tabelas são **usuario, categoria, lancamento, terceiro, meta_reserva, meta_aporte, saude_financeira e simulacao**. Cada conta possui seus próprios registros; os lançamentos se relacionam a categorias e, opcionalmente, a terceiros.
 
-## 🧪 Testes
+![Diagrama lógico do banco de dados](docs/imagens/diagrama_logico_banco.png)
+
+## 🛠️ Tecnologias utilizadas
+
+**Python** (lógica), **CustomTkinter** (interface), **MySQL** (persistência), **python-dotenv** (configurações), **Google Gemini** (IA opcional) e **unittest** (testes).
+
+## 🧪 Testes e problemas comuns
+
+Para executar os testes automatizados:
 
 ```bash
 python -m unittest discover -s tests
 ```
 
-**Problemas comuns:** se faltar uma biblioteca, repita a instalação do passo 2. Se houver erro de conexão, verifique o serviço MySQL e os dados do `.env`. Não publique esse arquivo com senhas ou chaves reais.
+- **Biblioteca não encontrada:** execute novamente `python -m pip install -r requirements.txt`.
+- **Falha de conexão:** verifique se o MySQL está iniciado e se as credenciais do `.env` estão corretas.
+- **Assistente indisponível:** confira a conexão com a internet e a chave de API.
 
-> **Limitações:** não há integração bancária automática nem sincronização própria em nuvem. O assistente IA precisa de internet e de uma chave de API válida.
+> **Observações:** não publique seu arquivo `.env`, pois ele pode conter credenciais. O sistema não importa extratos bancários automaticamente e não oferece sincronização própria em nuvem. A IA depende de internet e pode enviar o conteúdo das consultas ao serviço Gemini.
