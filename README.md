@@ -80,8 +80,8 @@ As escolhas de idioma e aparência ficam salvas localmente em `data/interface.js
 | Dashboard | Assistente IA |
 | :---: | :---: |
 | ![Dashboard](docs/imagens/01_dashboard_atual.png) | ![Assistente IA](docs/imagens/02_assistente_ia.png) |
-| **Lançamentos** | **Metas** |
-| ![Lançamentos](docs/imagens/05_lancamentos.png) | ![Metas](docs/imagens/06_metas.png) |
+| **Lançamentos** | **Relatório Mensal** |
+| ![Lançamentos](docs/imagens/05_lancamentos.png) | ![Relatório Mensal](docs/imagens/07_relatorio.png) |
 | **Categorias** | **Meu Perfil** |
 | ![Categorias](docs/imagens/08_categorias.png) | ![Meu Perfil](docs/imagens/09_meu_perfil.png) |
 
