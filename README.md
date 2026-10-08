@@ -75,7 +75,7 @@ Na primeira execução, escolha **Criar Conta** para começar com seus próprios
 | **Lançamentos** | **Metas** |
 | ![Lançamentos](docs/imagens/05_lancamentos.png) | ![Metas](docs/imagens/06_metas.png) |
 | **Simulador — Visão por Metas** | **Relatório Mensal** |
-| ![Simulador](docs/imagens/03_simulador_visao_metas.png) | ![Relatório](docs/imagens/07_relatorio.png) |
+| ![Simulador](docs/imagens/03_simulador_visao_metas.png) |
 | **Categorias** | **Meu Perfil** |
 | ![Categorias](docs/imagens/08_categorias.png) | ![Meu Perfil](docs/imagens/09_meu_perfil.png) |
 
