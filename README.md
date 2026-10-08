@@ -92,7 +92,11 @@ O projeto utiliza a organização **MVC + DAO**, que separa as telas, as regras 
 
 As principais tabelas são **usuario, categoria, lancamento, terceiro, meta_reserva, meta_aporte, saude_financeira e simulacao**. Cada conta possui seus próprios registros; os lançamentos se relacionam a categorias e, opcionalmente, a terceiros.
 
-![Diagrama lógico do banco de dados](docs/imagens/diagrama_logico_banco.png)
+### Diagrama lógico
+
+O diagrama abaixo mostra as principais tabelas e como seus registros se relacionam. As ligações representam os vínculos entre usuários, categorias, lançamentos, metas e os demais dados financeiros.
+
+![Diagrama lógico atualizado do banco de dados](docs/imagens/diagrama_logico_banco.png)
 
 ## 🛠️ Tecnologias utilizadas
 
