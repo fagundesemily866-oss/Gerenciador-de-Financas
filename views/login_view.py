@@ -6,7 +6,7 @@ from dao.usuario_dao import UsuarioDAO
 from services.seguranca import hash_senha
 from views.dialogo_demo import DialogoConfirmarDemo
 from views.tema import (
-    COR_CARD, COR_CARD_INTERNO, COR_BORDA, COR_TEXTO_PRINCIPAL,
+    COR_FUNDO_PRINCIPAL, COR_CARD, COR_CARD_INTERNO, COR_BORDA, COR_TEXTO_PRINCIPAL,
     COR_TEXTO_SECUNDARIO, COR_TEXTO_TERCIARIO, COR_ACENTO_PRIMARIO,
     COR_ACENTO_HOVER, COR_SUCESSO, COR_SUCESSO_HOVER, COR_ALERTA,
     COR_BOTAO_SECUNDARIO, COR_BOTAO_SECUNDARIO_HOVER,
@@ -49,7 +49,7 @@ class LoginView(ctk.CTkFrame):
         """Painel esquerdo com fundo animado, logo e taglines."""
         hero = ctk.CTkFrame(
             self,
-            fg_color="#091017",
+            fg_color=COR_FUNDO_PRINCIPAL,
             corner_radius=0,
         )
         hero.grid(row=0, column=0, sticky="nsew")
@@ -57,7 +57,7 @@ class LoginView(ctk.CTkFrame):
         hero.grid_rowconfigure(0, weight=1)
 
         # Canvas de fundo decorativo
-        canvas = tk.Canvas(hero, bg="#091017", highlightthickness=0)
+        canvas = tk.Canvas(hero, bg=obter_cor(COR_FUNDO_PRINCIPAL), highlightthickness=0)
         canvas.grid(row=0, column=0, sticky="nsew")
 
         def desenhar_fundo(e=None):
@@ -81,31 +81,31 @@ class LoginView(ctk.CTkFrame):
             # Grade de pontos
             for ix in range(0, w, 40):
                 for iy in range(0, h, 40):
-                    canvas.create_oval(ix-1, iy-1, ix+1, iy+1, fill="#1A2D3C", outline="")
+                    canvas.create_oval(ix-1, iy-1, ix+1, iy+1, fill=obter_cor(COR_BORDA), outline="")
 
             # Textos por cima
             cy = h // 2
             cx = w // 2
             canvas.create_text(cx, cy - 80, text="📊", font=("Segoe UI", 52), fill="#00D084")
-            canvas.create_text(cx, cy - 10, text="Gerenciador", font=("Segoe UI", 26, "bold"), fill="#FFFFFF")
+            canvas.create_text(cx, cy - 10, text="Gerenciador", font=("Segoe UI", 26, "bold"), fill=obter_cor(COR_TEXTO_PRINCIPAL))
             canvas.create_text(cx, cy + 26, text="de Finanças", font=("Segoe UI", 26, "bold"), fill="#00D084")
-            canvas.create_text(cx, cy + 70, text="Pessoais", font=("Segoe UI", 14), fill="#94A3B8")
+            canvas.create_text(cx, cy + 70, text="Pessoais", font=("Segoe UI", 14), fill=obter_cor(COR_TEXTO_SECUNDARIO))
             canvas.create_text(cx, cy + 105,
                 text="Controle inteligente das suas finanças.",
-                font=("Segoe UI", 11), fill="#64748B")
+                font=("Segoe UI", 11), fill=obter_cor(COR_TEXTO_TERCIARIO))
 
             # Badges de features
             for i, (ic, txt) in enumerate([
                 ("🎯", "Metas financeiras"),
                 ("📈", "Relatórios mensais"),
                 ("🤖", "Assistente IA"),
-                ("🔮", "Simulador de cenários"),
+                ("🔮", "Simulador de Cenários"),
             ]):
                 by = cy + 160 + i * 36
                 canvas.create_rectangle(cx - 130, by - 14, cx + 130, by + 14,
-                    fill="#101D27", outline="#1E3143", width=1)
+                    fill=obter_cor(COR_CARD_INTERNO), outline=obter_cor(COR_BORDA), width=1)
                 canvas.create_text(cx - 110, by, text=ic, font=("Segoe UI", 12), fill="#00D084")
-                canvas.create_text(cx + 10, by, text=txt, font=("Segoe UI", 11), fill="#94A3B8")
+                canvas.create_text(cx + 10, by, text=txt, font=("Segoe UI", 11), fill=obter_cor(COR_TEXTO_SECUNDARIO))
 
         canvas.bind("<Configure>", desenhar_fundo)
         canvas.after(100, desenhar_fundo)

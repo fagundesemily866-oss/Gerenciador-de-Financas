@@ -29,3 +29,6 @@ test_*.py.bak
 /data/perfis/
 
 /data/terceiros/
+
+# Local UI preferences
+/data/interface.json

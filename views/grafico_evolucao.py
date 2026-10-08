@@ -18,7 +18,7 @@ import customtkinter as ctk
 from views.tema import (
     COR_FUNDO_PRINCIPAL, COR_CARD, COR_CARD_INTERNO, COR_BORDA,
     COR_TEXTO_PRINCIPAL, COR_TEXTO_SECUNDARIO, COR_TEXTO_TERCIARIO,
-    COR_ACENTO_PRIMARIO, COR_SUCESSO, COR_ALERTA, COR_AVISO, fonte
+    COR_ACENTO_PRIMARIO, COR_SUCESSO, COR_ALERTA, COR_AVISO, fonte, obter_cor
 )
 
 
@@ -69,7 +69,7 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
 
         self.canvas = tk.Canvas(
             self.canvas_frame,
-            bg=COR_CARD_INTERNO,
+            bg=obter_cor(COR_CARD_INTERNO),
             bd=0,
             highlightthickness=0,
             relief="flat",
@@ -197,7 +197,7 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
             # Linha guia sutil
             self.canvas.create_line(
                 margem_esq, y, largura - margem_dir, y,
-                fill=COR_BORDA,
+                fill=obter_cor(COR_BORDA),
                 dash=(2, 4),
                 width=1
             )
@@ -207,7 +207,7 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
             self.canvas.create_text(
                 margem_esq - 8, y,
                 text=rotulo_y,
-                fill=COR_TEXTO_TERCIARIO,
+                fill=obter_cor(COR_TEXTO_TERCIARIO),
                 anchor="e",
                 font=("Segoe UI", 8)
             )
@@ -217,7 +217,7 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
             y_zero = _coord_y(0.0)
             self.canvas.create_line(
                 margem_esq, y_zero, largura - margem_dir, y_zero,
-                fill=COR_TEXTO_SECUNDARIO,
+                fill=obter_cor(COR_TEXTO_SECUNDARIO),
                 width=1
             )
 
@@ -229,12 +229,12 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
             self.canvas.create_text(
                 x, margem_topo + area_h + 16,
                 text=rot,
-                fill=COR_TEXTO_SECUNDARIO,
+                fill=obter_cor(COR_TEXTO_SECUNDARIO),
                 anchor="center",
                 font=("Segoe UI", 9)
             )
             # Marquinha vertical
-            self.canvas.create_line(x, margem_topo + area_h, x, margem_topo + area_h + 4, fill=COR_BORDA)
+            self.canvas.create_line(x, margem_topo + area_h, x, margem_topo + area_h + 4, fill=obter_cor(COR_BORDA))
 
         # 3. Desenho das Séries
         self._pontos_plotados = []
@@ -262,6 +262,7 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
         for i, val in enumerate(serie):
             coords.extend([f_x(i), f_y(val)])
 
+        cor = obter_cor(cor)
         # Preenchimento translúcido sob a linha de saldo
         if preencher and len(coords) >= 4:
             area_coords = list(coords)
@@ -269,7 +270,7 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
             area_coords.extend([f_x(len(serie) - 1), self.canvas.winfo_height() - 40, f_x(0), self.canvas.winfo_height() - 40])
             self.canvas.create_polygon(
                 area_coords,
-                fill="#0D2C2F",
+                fill=obter_cor(("#D1FAE5", "#0D2C2F")),
                 outline="",
             )
 
@@ -293,7 +294,7 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
             self.canvas.create_oval(
                 px - raio, py - raio, px + raio, py + raio,
                 fill=cor,
-                outline=COR_CARD_INTERNO,
+                outline=obter_cor(COR_CARD_INTERNO),
                 width=1.5
             )
             # Registrar ponto para hover
@@ -336,7 +337,7 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
 
             self.canvas.create_rectangle(
                 tx1, ty1, tx2, ty2,
-                fill=COR_FUNDO_PRINCIPAL,
+                fill=obter_cor(COR_FUNDO_PRINCIPAL),
                 outline=ponto_proximo["cor"],
                 width=1.5,
                 tags="tooltip"
@@ -344,7 +345,7 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
             self.canvas.create_text(
                 (tx1 + tx2) / 2, (ty1 + ty2) / 2,
                 text=texto,
-                fill=COR_TEXTO_PRINCIPAL,
+                fill=obter_cor(COR_TEXTO_PRINCIPAL),
                 font=("Segoe UI", 9, "bold"),
                 tags="tooltip"
             )
@@ -358,6 +359,6 @@ class GraficoEvolucaoCanvas(ctk.CTkFrame):
         self.canvas.create_text(
             w / 2, h / 2,
             text=mensagem,
-            fill=COR_TEXTO_TERCIARIO,
+            fill=obter_cor(COR_TEXTO_TERCIARIO),
             font=("Segoe UI", 12)
         )

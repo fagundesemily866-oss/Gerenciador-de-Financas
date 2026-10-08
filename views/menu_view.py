@@ -18,7 +18,7 @@ from views.tema import (
     COR_BOTAO_SECUNDARIO, COR_BOTAO_SECUNDARIO_HOVER,
     COR_LOGOUT_BG, COR_LOGOUT_HOVER, COR_LOGOUT_TEXTO,
     COR_FECHAR_BG, COR_FECHAR_HOVER, COR_FECHAR_TEXTO, COR_AVISO,
-    fonte, fonte_titulo, fonte_subtitulo, fonte_corpo, fonte_pequena,
+    fonte, fonte_titulo, fonte_subtitulo, fonte_corpo, fonte_pequena, definir_tema_preferido,
 )
 
 
@@ -94,7 +94,7 @@ class EmConstrucaoView(ctk.CTkFrame):
 class MenuView(ctk.CTkFrame):
     """Janela principal: menu lateral + área de conteúdo."""
 
-    def __init__(self, parent, usuario_logado=None, on_logout=None):
+    def __init__(self, parent, usuario_logado=None, on_logout=None, on_idioma_alterado=None):
         super().__init__(
             parent,
             fg_color="transparent"
@@ -108,6 +108,7 @@ class MenuView(ctk.CTkFrame):
             "tipo_perfil": "PF",
         }
         self.on_logout = on_logout
+        self.on_idioma_alterado = on_idioma_alterado
 
         # Views já criadas
         self.views = {}
@@ -589,7 +590,7 @@ class MenuView(ctk.CTkFrame):
             button_color=COR_ACENTO_PRIMARIO,
             font=fonte(11),
         )
-        self.opcao_tema.set("Dark")
+        self.opcao_tema.set(ctk.get_appearance_mode())
         self.opcao_tema.pack(side="right", padx=6, pady=4)
 
         # Botão Sair da Conta / Logout
@@ -621,7 +622,7 @@ class MenuView(ctk.CTkFrame):
         ).pack(fill="x")
 
     def _alterar_tema(self, modo: str):
-        ctk.set_appearance_mode(modo)
+        definir_tema_preferido(modo)
         if hasattr(self, "lbl_avatar") and self.lbl_avatar.winfo_exists():
             self.lbl_avatar.atualizar_cores()
         # Limpa views em cache para aplicar as cores do novo tema
@@ -732,6 +733,7 @@ class MenuView(ctk.CTkFrame):
                 usuario_atual=self.usuario_logado,
                 on_foto_atualizada=self.atualizar_avatar_sidebar,
                 on_conta_excluida=self.on_logout,
+                on_idioma_alterado=self.on_idioma_alterado,
             )
         else:
             nova_view = classe_view(self.container)

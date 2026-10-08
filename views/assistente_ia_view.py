@@ -131,7 +131,7 @@ class AssistenteIAView(ctk.CTkFrame):
 
     def _boas_vindas(self):
         self._labels_mensagem = []
-        self._balao('ia', f'Olá, {self.nome_usuario}! 👋\nPosso ajudar com seu planejamento financeiro, metas e gastos. O histórico começa vazio e os números mostrados são os da sua conta.')
+        self._balao('ia', f'Hello, {self.nome_usuario}! 👋\nI can help with budgeting, goals and expenses. Your chat starts empty, and all figures are taken from your account.')
 
     def _balao(self, autor, mensagem):
         usuario = autor == 'usuario'
@@ -156,19 +156,19 @@ class AssistenteIAView(ctk.CTkFrame):
 
     def _analisar_despesas(self):
         r = resumo(self.dao.listar_todos())
-        self._balao('usuario', 'Quais são meus maiores gastos neste mês?')
+        self._balao('usuario', 'What were my biggest expenses this month?')
         if not r['categorias']:
-            self._balao('ia', 'Você ainda não tem despesas cadastradas neste mês. Adicione lançamentos para analisar seus gastos.')
+            self._balao('ia', 'You have no recorded expenses this month. Add transactions to analyze your spending.')
             return
         linhas = [f'{i}. {nome}: {dinheiro(valor)}' for i, (nome, valor) in enumerate(r['categorias'][:6], 1)]
-        self._balao('ia', f"Despesas de {r['mes']:02d}/{r['ano']}: {dinheiro(r['despesas'])}\n" + '\n'.join(linhas))
+        self._balao('ia', f"Expenses for {r['mes']:02d}/{r['ano']}: {dinheiro(r['despesas'])}\n" + '\n'.join(linhas))
 
     def _enviar_mensagem(self):
         texto = self.entry_msg.get().strip()
         if not texto or self._aguardando_resposta:
             return
         self.entry_msg.delete(0, 'end')
-        if 'maiores gastos' in texto.lower() or 'minhas despesas' in texto.lower():
+        if 'biggest expenses' in texto.lower() or 'my expenses' in texto.lower() or 'maiores gastos' in texto.lower() or 'minhas despesas' in texto.lower():
             self._analisar_despesas()
             return
         self._balao('usuario', texto)
@@ -179,7 +179,7 @@ class AssistenteIAView(ctk.CTkFrame):
                 from services.ai_service import AIService
                 resposta = AIService().enviar_pergunta(texto)
             except Exception as exc:
-                resposta = f'Não foi possível consultar a IA: {exc}'
+                resposta = f'Could not contact the AI service: {exc}'
             self._fila.put(resposta)
         threading.Thread(target=trabalhar, daemon=True).start()
         self.after(150, self._verificar_resposta)

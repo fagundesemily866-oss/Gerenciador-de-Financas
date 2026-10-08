@@ -93,11 +93,13 @@ class UsuarioView(ctk.CTkFrame):
         usuario_atual: Optional[dict] = None,
         on_foto_atualizada: Optional[Callable] = None,
         on_conta_excluida: Optional[Callable] = None,
+        on_idioma_alterado: Optional[Callable[[str], None]] = None,
     ):
         super().__init__(parent, fg_color="transparent")
         self.dao = dao or UsuarioDAO()
         self.on_foto_atualizada = on_foto_atualizada
         self.on_conta_excluida = on_conta_excluida
+        self.on_idioma_alterado = on_idioma_alterado
         self.usuario_atual = usuario_atual or {
             "id": 1,
             "nome": "Usuário",
@@ -507,7 +509,7 @@ class UsuarioView(ctk.CTkFrame):
         combo_t = ctk.CTkOptionMenu(
             r1, values=["Dark", "Light"], width=90, height=28,
             fg_color=COR_CARD_INTERNO, button_color=COR_CARD_INTERNO, text_color=COR_TEXTO_PRINCIPAL, font=fonte(10),
-            command=ctk.set_appearance_mode
+            command=self._mudar_tema_global
         )
         # reflete o tema realmente ativo (antes voltava sempre para "Dark")
         modo = ctk.get_appearance_mode()  # "Dark" ou "Light"
@@ -524,11 +526,14 @@ class UsuarioView(ctk.CTkFrame):
         ctk.CTkLabel(t2, text="Idioma", font=fonte(11, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w")
         ctk.CTkLabel(t2, text="Idioma do sistema.", font=fonte(9), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w")
 
+        from idioma import obter_idioma, IDIOMAS_DISPONIVEIS
         combo_id = ctk.CTkOptionMenu(
-            r2, values=["Português (Brasil)", "English (US)"], width=140, height=28,
-            fg_color=COR_CARD_INTERNO, button_color=COR_CARD_INTERNO, text_color=COR_TEXTO_PRINCIPAL, font=fonte(10)
+            r2, values=list(IDIOMAS_DISPONIVEIS.values()), width=160, height=30,
+            fg_color=COR_CARD_INTERNO, button_color=COR_CARD_INTERNO,
+            text_color=COR_TEXTO_PRINCIPAL, font=fonte(10),
+            command=self._mudar_idioma_global,
         )
-        combo_id.set("Português (Brasil)")
+        combo_id.set(IDIOMAS_DISPONIVEIS[obter_idioma()])
         combo_id.pack(side="right")
 
         # 3. Notificações
@@ -544,6 +549,29 @@ class UsuarioView(ctk.CTkFrame):
         sw = ctk.CTkSwitch(r3, text="Ativadas", font=fonte(10), progress_color="#00D084")
         sw.select()
         sw.pack(side="right")
+
+    def _mudar_idioma_global(self, escolha: str) -> None:
+        """Altera o idioma mantendo a conta conectada e atualizando as telas."""
+        from idioma import IDIOMAS_DISPONIVEIS, obter_idioma, definir_idioma
+        codigo = next((c for c, texto in IDIOMAS_DISPONIVEIS.items() if texto == escolha), None)
+        if codigo is None or codigo == obter_idioma():
+            return
+        if self.on_idioma_alterado is not None:
+            self.on_idioma_alterado(codigo)
+        else:
+            definir_idioma(codigo)
+            self._montar_tela()
+
+    def _mudar_tema_global(self, modo):
+        """Update all cached screens, not only the profile controls."""
+        atual = self.master
+        while atual is not None:
+            if hasattr(atual, '_alterar_tema'):
+                atual._alterar_tema(modo)
+                return
+            atual = getattr(atual, 'master', None)
+        from views.tema import definir_tema_preferido
+        definir_tema_preferido(modo)
 
     def _build_card_privacidade(self, parent):
         card = ctk.CTkFrame(parent, fg_color=COR_CARD, corner_radius=14, border_width=1, border_color=COR_BORDA)

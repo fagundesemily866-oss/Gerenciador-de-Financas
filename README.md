@@ -67,6 +67,14 @@ python main.py
 
 Na primeira execução, escolha **Criar Conta** para começar com seus próprios registros ou **Gerar dados aleatórios** para experimentar uma conta de demonstração.
 
+## 🌐 Idiomas e tema claro
+
+O sistema inicia em **Português (Brasil)**. Em **Meu Perfil → Preferências do Aplicativo → Idioma**, selecione **Português (Brasil)** ou **English (US)**. As telas são atualizadas automaticamente ao trocar o idioma; salve formulários em andamento antes de alterar essa preferência. As opções **Dark/Light** continuam disponíveis.
+
+As escolhas de idioma e aparência ficam salvas localmente em `data/interface.json` e são carregadas ao iniciar novamente. O idioma da interface **não altera** os registros nem os valores internos do MySQL.
+
+> The screenshots below illustrate an earlier version of the app and may still contain Portuguese labels.
+
 ## 🖼️ Prints do sistema
 
 | Dashboard | Assistente IA |

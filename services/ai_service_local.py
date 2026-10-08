@@ -40,17 +40,27 @@ else:
 
 
 
+from idioma import obter_idioma
+
 class AIService:
     """Wrapper para comunicação com a API Gemini do Google."""
 
     SYSTEM_INSTRUCTION = (
-        "Você é um consultor financeiro pessoal integrado a um aplicativo de "
-        "gerenciamento de finanças. Responda de forma clara, objetiva e em "
-        "português do Brasil. Foque em dicas práticas de economia, "
-        "investimentos, controle de gastos e planejamento financeiro. "
-        "Quando fizer sentido, use emojis para tornar a resposta mais "
-        "amigável. Mantenha respostas curtas e diretas (máximo ~200 palavras)."
+        "You are a personal financial assistant inside a finance management "
+        "application. Respond in the selected interface language. "
+        "Focus on practical budgeting, saving, "
+        "investments, expense tracking and financial planning. Keep answers "
+        "short (about 200 words maximum) and avoid inventing financial data."
     )
+
+    @staticmethod
+    def _instrucao_sistema() -> str:
+        idioma = "Portuguese (Brazil)" if obter_idioma() == "pt_BR" else "English (US)"
+        return (
+            "You are a personal financial assistant in a finance app. "
+            f"Always reply in {idioma}. Focus on practical financial guidance, "
+            "keep answers concise, and never invent financial data."
+        )
 
     MODELOS_PREFERENCIAIS = [
         "gemini-3.5-flash-lite",
@@ -99,7 +109,7 @@ class AIService:
                 self._chat = self._client.chats.create(
                     model=self._model_name,
                     config=genai_types.GenerateContentConfig(
-                        system_instruction=self.SYSTEM_INSTRUCTION
+                        system_instruction=self._instrucao_sistema()
                     ),
                 )
                 self._modo_novo_sdk = True
@@ -114,7 +124,7 @@ class AIService:
                 legacy_genai.configure(api_key=self._api_key)
                 model = legacy_genai.GenerativeModel(
                     model_name=self._model_name,
-                    system_instruction=self.SYSTEM_INSTRUCTION,
+                    system_instruction=self._instrucao_sistema(),
                 )
                 self._chat = model.start_chat(history=[])
                 self._modo_novo_sdk = False
@@ -190,13 +200,13 @@ class AIService:
             self._chat = self._client.chats.create(
                 model=self._model_name,
                 config=genai_types.GenerateContentConfig(
-                    system_instruction=self.SYSTEM_INSTRUCTION
+                    system_instruction=self._instrucao_sistema()
                 ),
             )
         elif not self._modo_novo_sdk and HAS_LEGACY_GENAI:
             model = legacy_genai.GenerativeModel(
                 model_name=self._model_name,
-                system_instruction=self.SYSTEM_INSTRUCTION,
+                system_instruction=self._instrucao_sistema(),
             )
             self._chat = model.start_chat(history=[])
 
@@ -229,8 +239,9 @@ class AIService:
                 prompt += f"  • {desc}: Previsão para {data_est} ({econ} meses adiantados)\n"
 
         prompt += (
-            "\nForneça uma análise amigável, com tom encorajador e profissional em português do Brasil, "
-            "explicando as consequências dessa decisão no curto e longo prazo. Máximo 180 palavras."
+            "\nExplique as consequências no curto e longo prazo de maneira prática, "
+            + ("em português do Brasil" if obter_idioma() == "pt_BR" else "in English (US)")
+            + ". Máximo 180 palavras."
         )
 
         if self.disponivel:

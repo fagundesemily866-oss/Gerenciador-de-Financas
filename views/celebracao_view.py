@@ -14,7 +14,7 @@ from views.tema import (
     COR_CARD, COR_CARD_INTERNO, COR_BORDA, COR_TEXTO_PRINCIPAL,
     COR_TEXTO_SECUNDARIO, COR_TEXTO_MUTED,
     COR_ACENTO_PRIMARIO, COR_SUCESSO, COR_ALERTA,
-    fonte,
+    fonte, obter_cor,
 )
 
 
@@ -262,14 +262,14 @@ class CelebracaoMetaView(ctk.CTkToplevel):
         # Canvas de animação (fundo inteiro)
         self.canvas = tk.Canvas(
             self, width=600, height=480,
-            bg="#0B131B", highlightthickness=0
+            bg=obter_cor(("#F1F5F9", "#0B131B")), highlightthickness=0
         )
         self.canvas.place(x=0, y=0, relwidth=1, relheight=1)
 
         # Texto de celebração (por cima do canvas)
         self.canvas.create_text(
             300, 50,
-            text="🎯 META ATINGIDA! 🎉",
+            text="🎯 GOAL REACHED! 🎉",
             fill="#00D084",
             font=("Segoe UI", 22, "bold"),
             tags="texto_principal"
@@ -277,13 +277,13 @@ class CelebracaoMetaView(ctk.CTkToplevel):
         self.canvas.create_text(
             300, 90,
             text=f'"{self.titulo_meta}"',
-            fill="#FFFFFF",
+            fill=obter_cor(COR_TEXTO_PRINCIPAL),
             font=("Segoe UI", 14),
             tags="texto_titulo"
         )
         self.canvas.create_text(
             300, 120,
-            text=f"R$ {self.valor_meta:,.2f} poupados! 💰",
+            text=f"R$ {self.valor_meta:,.2f} saved! 💰",
             fill="#F59E0B",
             font=("Segoe UI", 12, "bold"),
             tags="texto_valor"
