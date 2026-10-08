@@ -58,22 +58,22 @@ class LancamentoDAO:
     # ------------------------------------------------------------------
     # Escrita
     # ------------------------------------------------------------------
-    def _resolver_categoria(self, conn, nome_categoria: str, usuario_id: Optional[int]) -> int:
+    def _resolver_categoria(self, conn, nome_categoria: str, usuario_id: Optional[int], tipo: str) -> int:
         """Busca id_categoria pelo nome. Cria a categoria se não existir."""
         cursor = conn.execute(
-            "SELECT id_categoria FROM categoria WHERE nome = %s AND id_usuario = %s LIMIT 1",
-            (nome_categoria.strip(), usuario_id),
+            "SELECT id_categoria FROM categoria WHERE nome = %s AND id_usuario = %s AND tipo = %s LIMIT 1",
+            (nome_categoria.strip(), usuario_id, _tipo_db(tipo)),
         )
         row = cursor.fetchone()
         if row:
             return row["id_categoria"]
-        # Categoria não existe: cria automaticamente como Despesa/Pessoal
+        # Cria uma categoria do MESMO tipo do lançamento, sem misturar receitas/despesas.
         cursor = conn.execute(
             """
             INSERT INTO categoria (id_usuario, nome, tipo, escopo, limite_orcamento)
             VALUES (%s, %s, %s, %s, %s)
             """,
-            (usuario_id, nome_categoria.strip(), "DESPESA", "PESSOAL", 0.0),
+            (usuario_id, nome_categoria.strip(), _tipo_db(tipo), "PESSOAL", 0.0),
         )
         return cursor.lastrowid
 
@@ -91,7 +91,7 @@ class LancamentoDAO:
         """Insere um novo lançamento. 'tipo' deve ser 'Receita' ou 'Despesa'."""
         usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
-        id_categoria = self._resolver_categoria(conn, categoria, usuario_id)
+        id_categoria = self._resolver_categoria(conn, categoria, usuario_id, tipo)
         cursor = conn.execute(
             """
             INSERT INTO lancamento
@@ -130,7 +130,7 @@ class LancamentoDAO:
         )
         row_usr = cur_usr.fetchone()
         uid = row_usr["id_usuario"] if row_usr else None
-        id_categoria = self._resolver_categoria(conn, categoria, uid)
+        id_categoria = self._resolver_categoria(conn, categoria, uid, tipo)
         cursor = conn.execute(
             """
             UPDATE lancamento

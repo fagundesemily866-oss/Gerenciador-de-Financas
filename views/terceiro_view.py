@@ -15,6 +15,8 @@ import tkinter as tk
 from datetime import datetime, date
 from typing import Optional, Dict, Any, List
 import customtkinter as ctk
+from PIL import Image
+from services.foto_perfil import avatar_circular, carregar_foto, salvar_foto_terceiro
 
 from dao.terceiro_dao import TerceiroDAO
 from models.terceiro import Terceiro
@@ -37,6 +39,8 @@ class TerceiroView(ctk.CTkFrame):
         self.filtro_tipo = "Todos"
         self.tipo_vinculo = "Fornecedor"
         self.aba_form = "Dados principais"
+        self.caminho_foto_logo = None
+        self._fotos_contatos = []
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -244,14 +248,16 @@ class TerceiroView(ctk.CTkFrame):
         ctk.CTkLabel(th, text="Ações", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, anchor="e").pack(side="right", padx=(0, 8))
 
         # Exibir apenas contatos reais, sem nomes, telefones ou e-mails inventados.
+        self._fotos_contatos = []
         contatos = []
         for t in self.dao.listar_todos():
             rel = t.get('relacao', 'Contato') if isinstance(t, dict) else getattr(t, 'relacao', 'Contato')
             nom = t.get('nome', 'Contato') if isinstance(t, dict) else getattr(t, 'nome', 'Contato')
             tid = t.get('id') if isinstance(t, dict) else getattr(t, 'id', None)
             cor = '#A855F7' if rel == 'Fornecedor' else '#00D084'
+            caminho_foto = t.get('foto_perfil') if isinstance(t, dict) else getattr(t, 'foto_perfil', None)
             contatos.append(('👤', '#182A3A', nom, 'Contato cadastrado', rel, cor,
-                             '#1C142E', '—', '—', '—', '#64748B', tid))
+                             '#1C142E', '—', '—', '—', '#64748B', tid, caminho_foto))
         if not contatos:
             ctk.CTkLabel(card_tab, text="Nenhum contato cadastrado nesta conta.",
                          font=fonte(12), text_color=COR_TEXTO_SECUNDARIO).pack(pady=22)
@@ -264,11 +270,13 @@ class TerceiroView(ctk.CTkFrame):
         contatos_formatados = []
         for item in contatos:
             if len(item) == 11:
+                contatos_formatados.append((*item, None, None))
+            elif len(item) == 12:
                 contatos_formatados.append((*item, None))
             else:
                 contatos_formatados.append(item)
 
-        for av_txt, bg_av, nom, sub, tipo_b, cor_t, bg_t, tel, em, ult_atv, cor_atv, tid in contatos_formatados:
+        for av_txt, bg_av, nom, sub, tipo_b, cor_t, bg_t, tel, em, ult_atv, cor_atv, tid, foto_caminho in contatos_formatados:
             row = ctk.CTkFrame(card_tab, fg_color=COR_CARD_INTERNO, corner_radius=8, height=48)
             row.pack(fill="x", padx=14, pady=2)
             row.pack_propagate(False)
@@ -277,7 +285,16 @@ class TerceiroView(ctk.CTkFrame):
             av_box = ctk.CTkFrame(row, width=30, height=30, corner_radius=15, fg_color=bg_av)
             av_box.pack(side="left", padx=(8, 8))
             av_box.pack_propagate(False)
-            ctk.CTkLabel(av_box, text=av_txt, font=fonte(10, "bold"), text_color="#FFFFFF").place(relx=0.5, rely=0.5, anchor="center")
+            foto = carregar_foto(foto_caminho)
+            if foto is not None:
+                imagem_redonda = avatar_circular(foto, 28)
+                icone_foto = ctk.CTkImage(
+                    light_image=imagem_redonda,
+                    dark_image=imagem_redonda, size=(28, 28))
+                self._fotos_contatos.append(icone_foto)
+                ctk.CTkLabel(av_box, text="", image=icone_foto, width=28, height=28).place(relx=0.5, rely=0.5, anchor="center")
+            else:
+                ctk.CTkLabel(av_box, text=av_txt, font=fonte(10, "bold"), text_color="#FFFFFF").place(relx=0.5, rely=0.5, anchor="center")
 
             # Nome
             n_box = ctk.CTkFrame(row, fg_color="transparent", width=140)
@@ -542,9 +559,18 @@ class TerceiroView(ctk.CTkFrame):
         if not nom:
             return
 
-        self.dao.inserir(
-            nome=nom,
-            relacao=self.tipo_vinculo,
-        )
+        from tkinter import messagebox
+        try:
+            tid = self.dao.inserir(nome=nom, relacao=self.tipo_vinculo)
+        except Exception as exc:
+            messagebox.showerror("Salvar contato", f"Não foi possível salvar: {exc}", parent=self)
+            return
+        if self.caminho_foto_logo:
+            try:
+                salvar_foto_terceiro(tid, self.caminho_foto_logo, self.dao)
+            except Exception as exc:
+                # O contato já está salvo: não induzir nova inserção ao tentar novamente.
+                messagebox.showwarning("Foto do contato", f"Contato cadastrado, mas a foto não foi salva: {exc}", parent=self)
+        self.caminho_foto_logo = None
         self._limpar_form()
         self._montar_tela()

@@ -1,33 +1,52 @@
-"""Testes da inteligência financeira usando dados em memória, sem servidor SQL."""
+import os
+import sys
 import unittest
-from unittest.mock import Mock
+import tempfile
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from controllers.inteligencia_financeira_controller import InteligenciaFinanceiraController
+from models.database import Database
+from dao.lancamento_dao import LancamentoDAO
+from dao.categoria_dao import CategoriaDAO
+from dao.meta_dao import MetaDAO
 
 
 class TestInteligenciaFinanceira(unittest.TestCase):
+
     def setUp(self):
-        lancamentos = [
-            {"value": 6000., "type": "Receita", "category": "Salário", "date": "2026-08-05"},
-            {"value": 800., "type": "Despesa", "category": "Alimentação", "date": "2026-08-10"},
-            {"value": 400., "type": "Despesa", "category": "Transporte", "date": "2026-08-12"},
-            {"value": 6000., "type": "Receita", "category": "Salário", "date": "2026-09-05"},
-            {"value": 1200., "type": "Despesa", "category": "Alimentação", "date": "2026-09-10"},
-            {"value": 200., "type": "Despesa", "category": "Alimentação", "date": "2026-09-15"},
-            {"value": 100., "type": "Despesa", "category": "Transporte", "date": "2026-09-12"},
-        ]
-        categorias = [
-            {"nome": "Alimentação", "tipo": "Despesa", "limite_orcamento": 1000.},
-            {"nome": "Transporte", "tipo": "Despesa", "limite_orcamento": 500.},
-            {"nome": "Lazer", "tipo": "Despesa", "limite_orcamento": 400.},
-            {"nome": "Salário", "tipo": "Receita", "limite_orcamento": 0.},
-        ]
-        metas = [{"id": 1, "descricao": "Reserva de Emergência", "valor_alvo": 12000., "valor_atual": 2000.}]
-        self.lancamento_dao = Mock()
-        self.categoria_dao = Mock()
-        self.meta_dao = Mock()
-        self.lancamento_dao.listar_todos.return_value = lancamentos
-        self.categoria_dao.listar_todas.return_value = categorias
-        self.meta_dao.listar_todas.return_value = metas
+        self.temp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self.temp_db.close()
+        self.db = Database(db_path=self.temp_db.name)
+
+        self.lancamento_dao = LancamentoDAO(self.db)
+        self.categoria_dao = CategoriaDAO(self.db)
+        self.meta_dao = MetaDAO(self.db)
+
+        # Configurar categorias com limites
+        self.categoria_dao.inserir("Alimentação", "Despesa", limite_orcamento=1000.0)
+        self.categoria_dao.inserir("Transporte", "Despesa", limite_orcamento=500.0)
+        self.categoria_dao.inserir("Lazer", "Despesa", limite_orcamento=400.0)
+        self.categoria_dao.inserir("Salário", "Receita")
+
+        # Configurar meta
+        self.meta_dao.inserir("Reserva de Emergência", valor_alvo=12000.0, valor_atual=2000.0)
+
+        # Inserir dados do mês anterior (2026-08)
+        self.lancamento_dao.inserir("Salário Ago", 6000.0, "Receita", "Salário", "2026-08-05")
+        self.lancamento_dao.inserir("Supermercado Ago", 800.0, "Despesa", "Alimentação", "2026-08-10")
+        self.lancamento_dao.inserir("Combustível Ago", 400.0, "Despesa", "Transporte", "2026-08-12")
+
+        # Inserir dados do mês atual (2026-09)
+        self.lancamento_dao.inserir("Salário Set", 6000.0, "Receita", "Salário", "2026-09-05")
+        self.lancamento_dao.inserir("Supermercado Set", 1200.0, "Despesa", "Alimentação", "2026-09-10")
+        self.lancamento_dao.inserir("Restaurante Set", 200.0, "Despesa", "Alimentação", "2026-09-15")
+        self.lancamento_dao.inserir("Metrô Set", 100.0, "Despesa", "Transporte", "2026-09-12")
+
+    def tearDown(self):
+        self.db.close()
+        if os.path.exists(self.temp_db.name):
+            os.remove(self.temp_db.name)
 
     def test_previsao_gastos_fim_do_mes(self):
         lancamentos = self.lancamento_dao.listar_todos()

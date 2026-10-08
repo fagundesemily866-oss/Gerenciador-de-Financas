@@ -1,23 +1,50 @@
-"""Testes do simulador avançado isolados do MySQL real."""
+"""
+Testes Automatizados para o Laboratório e Simulador Financeiro Avançado.
+========================================================================
+
+Verifica:
+1. Projeção temporal contínua (3, 6, 12 e 24 meses);
+2. Cálculo dos 3 cenários (Otimista, Normal e Pessimista);
+3. Efeito cascata de eventos financeiros inesperados (únicos e recorrentes);
+4. Previsão inteligente de datas de conclusão de metas;
+5. Comparador de decisões financeiras (Cenários A, B e C);
+6. Mapa de consequências financeiras;
+7. Persistência de simulações com SimulacaoDAO;
+8. Análise interpretativa da IA com fallback local.
+"""
 import unittest
-from unittest.mock import Mock
+import os
+import shutil
+import tempfile
+from models.database import Database
 from dao.simulacao_dao import SimulacaoDAO
 from controllers.inteligencia_financeira_controller import InteligenciaFinanceiraController
 from services.ai_service import AIService
 
 
 class TestSimuladorAvancado(unittest.TestCase):
+
     def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_sim.db")
+        self.db = Database(self.db_path)
+        self.sim_dao = SimulacaoDAO(self.db)
+
         self.lancamentos_teste = [
-            {"value": 4000., "type": "Receita", "category": "Salário", "date": "2026-09-05"},
-            {"value": 1200., "type": "Despesa", "category": "Moradia", "date": "2026-09-10"},
-            {"value": 800., "type": "Despesa", "category": "Alimentação", "date": "2026-09-12"},
-            {"value": 400., "type": "Despesa", "category": "Transporte", "date": "2026-09-15"},
+            {"value": 4000.0, "type": "Receita", "category": "Salário", "date": "2026-09-05"},
+            {"value": 1200.0, "type": "Despesa", "category": "Moradia", "date": "2026-09-10"},
+            {"value": 800.0, "type": "Despesa", "category": "Alimentação", "date": "2026-09-12"},
+            {"value": 400.0, "type": "Despesa", "category": "Transporte", "date": "2026-09-15"},
         ]
+
         self.metas_teste = [
-            {"id": 1, "descricao": "Reserva de Emergência", "valor_alvo": 10000., "valor_atual": 4000.},
-            {"id": 2, "descricao": "Viagem de Férias", "valor_alvo": 6000., "valor_atual": 1500.},
+            {"id": 1, "descricao": "Reserva de Emergência", "valor_alvo": 10000.0, "valor_atual": 4000.0},
+            {"id": 2, "descricao": "Viagem de Férias", "valor_alvo": 6000.0, "valor_atual": 1500.0},
         ]
+
+    def tearDown(self):
+        self.db.close()
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_01_projecao_temporal_periodos(self):
         """Verifica se a projeção gera exatamente a quantidade de meses solicitada."""
@@ -139,18 +166,26 @@ class TestSimuladorAvancado(unittest.TestCase):
             self.assertIn("detalhe", p)
 
     def test_07_dao_persistir_simulacao(self):
-        db = Mock()
-        db.get_connection.return_value.execute.return_value.lastrowid = 12
-        sim_id = SimulacaoDAO(db).inserir(
-            nome="Viagem de Verão", descricao="Planejamento",
-            parametros={"horizonte_meses": 6}, resultados={"saldo_final": 12500},
-            usuario_id=1,
+        """Verifica salvar, listar e deletar simulação no SQLite."""
+        sim_id = self.sim_dao.inserir(
+            nome="Viagem de Verão",
+            descricao="Planejamento de corte de gastos",
+            parametros={"reducao_despesas_pct": 15, "horizonte_meses": 6},
+            resultados={"saldo_final_projetado": 12500.0},
         )
-        self.assertEqual(sim_id, 12)
-        sql, parametros = db.get_connection.return_value.execute.call_args.args
-        self.assertIn('INSERT INTO simulacao', sql)
-        self.assertEqual(parametros[0], 1)
-        db.get_connection.return_value.commit.assert_called_once()
+        self.assertIsNotNone(sim_id)
+
+        sim_carregada = self.sim_dao.buscar_por_id(sim_id)
+        self.assertIsNotNone(sim_carregada)
+        self.assertEqual(sim_carregada["nome"], "Viagem de Verão")
+        self.assertEqual(sim_carregada["parametros"]["reducao_despesas_pct"], 15)
+
+        todas = self.sim_dao.listar_todas()
+        self.assertEqual(len(todas), 1)
+
+        ok_del = self.sim_dao.deletar(sim_id)
+        self.assertTrue(ok_del)
+        self.assertEqual(len(self.sim_dao.listar_todas()), 0)
 
     def test_08_ai_service_analise_simulacao(self):
         """Verifica a geração do parecer de consultoria da IA com fallback inteligente."""

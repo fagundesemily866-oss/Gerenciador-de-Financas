@@ -12,12 +12,14 @@ Painel completo de dados pessoais, segurança e preferências:
    - Privacidade e Dados (Meus Dados, Segurança e Excluir Conta)
 """
 from datetime import datetime, date
+from math import isfinite
 from typing import Optional, Callable, Tuple
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image
 from tkinter import filedialog
 import customtkinter as ctk
 
 from dao.usuario_dao import UsuarioDAO
+from services.foto_perfil import avatar_circular, carregar_foto, salvar_foto
 from views.tema import (
     COR_CARD, COR_CARD_INTERNO, COR_BORDA, COR_TEXTO_PRINCIPAL,
     COR_TEXTO_SECUNDARIO, COR_TEXTO_MUTED,
@@ -43,8 +45,8 @@ def _parse_valor(txt: str) -> float:
     if "," in txt:  # padrão BR: 5.000,00
         txt = txt.replace(".", "").replace(",", ".")
     valor = float(txt)  # padrão 5000.00 passa direto
-    if valor < 0:
-        raise ValueError("valor negativo")
+    if not isfinite(valor) or valor < 0:
+        raise ValueError("valor inválido")
     return valor
 
 
@@ -245,16 +247,7 @@ class UsuarioView(ctk.CTkFrame):
             return
 
         tamanho = self.AVATAR_TAMANHO
-        render = tamanho * 2  # renderiza em 2x para ficar nítido em telas com escala
-
-        img = ImageOps.exif_transpose(imagem_pil).convert("RGBA")
-        # recorte quadrado central, já no tamanho final
-        img = ImageOps.fit(img, (render, render), Image.LANCZOS)
-
-        # máscara circular
-        mascara = Image.new("L", (render, render), 0)
-        ImageDraw.Draw(mascara).ellipse((0, 0, render - 1, render - 1), fill=255)
-        img.putalpha(mascara)
+        img = avatar_circular(imagem_pil, tamanho)
 
         self.avatar_perfil_image = ctk.CTkImage(
             light_image=img,
@@ -288,6 +281,9 @@ class UsuarioView(ctk.CTkFrame):
             text=self._iniciais_usuario(),
             font=fonte(22, "bold"),
             text_color="#00D084",
+            width=self.AVATAR_TAMANHO,
+            height=self.AVATAR_TAMANHO,
+            fg_color="transparent",
         )
         self.lbl_avatar_perfil.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -299,8 +295,8 @@ class UsuarioView(ctk.CTkFrame):
         )
         btn_cam.place(relx=0.85, rely=0.85, anchor="center")
 
-        # Se já existe uma foto (escolhida antes nesta sessão), reaplica ao reconstruir a tela
-        foto_salva = self.usuario_atual.get("foto_pil")
+        # Recupera a foto do MySQL/disco mesmo após fechar e reabrir o aplicativo.
+        foto_salva = carregar_foto(self.usuario_atual.get("foto_perfil"))
         if foto_salva is not None:
             self._aplicar_foto_no_avatar(foto_salva)
 
@@ -797,27 +793,20 @@ class UsuarioView(ctk.CTkFrame):
     # ==============================================================
     def _trocar_foto(self):
         caminho = filedialog.askopenfilename(
-            filetypes=[("Imagens", "*.png *.jpg *.jpeg *.bmp *.gif")]
+            filetypes=[("Imagens", "*.png *.jpg *.jpeg *.bmp *.gif *.webp")]
         )
         if not caminho:
             return
         try:
-            img = Image.open(caminho)
-            img.load()  # lê a imagem inteira agora, para poder fechar o arquivo
-        except Exception:
-            self._notificar("Não foi possível abrir essa imagem.", ok=False)
+            uid = self.usuario_atual["id"]
+            novo_caminho, imagem = salvar_foto(uid, caminho, self.dao)
+        except Exception as exc:
+            self._notificar(f"Não foi possível salvar a foto: {exc}", ok=False)
             return
 
-        # Guarda a foto no dicionário do usuário: assim ela sobrevive quando a tela
-        # é reconstruída (salvar dados, etc.) durante a sessão
-        self.usuario_atual["foto_pil"] = img
-
-        # 1) Avatar grande da tela Meu Perfil
-        self._aplicar_foto_no_avatar(img)
-
-        # 2) Avatar pequeno da sidebar
+        # Atualizar somente DEPOIS de o MySQL confirmar a gravação.
+        self.usuario_atual["foto_perfil"] = novo_caminho
+        self._aplicar_foto_no_avatar(imagem)
         if self.on_foto_atualizada:
-            try:
-                self.on_foto_atualizada(img)
-            except Exception:
-                pass
+            self.on_foto_atualizada(imagem)
+        self._notificar("Foto salva! Ela aparecerá também nos próximos acessos.")

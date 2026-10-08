@@ -24,3 +24,8 @@ data/*.sqlite3
 *.tmp
 patch_*.py
 test_*.py.bak
+
+# Fotos reais dos usuários (persistem localmente e não devem ir ao GitHub)
+/data/perfis/
+
+/data/terceiros/

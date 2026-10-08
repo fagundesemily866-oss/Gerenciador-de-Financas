@@ -4,6 +4,7 @@ import time
 from views.notificacao_toast import GerenciadorNotificacoes
 import customtkinter as ctk
 from PIL import Image
+from services.foto_perfil import avatar_circular, carregar_foto
 
 from models.database import Database
 
@@ -494,6 +495,9 @@ class MenuView(ctk.CTkFrame):
             text_color=COR_AVATAR_TEXTO,
         )
         self.lbl_avatar.pack(expand=True)
+        foto_persistida = carregar_foto(self.usuario_logado.get("foto_perfil"))
+        if foto_persistida is not None:
+            self.atualizar_avatar_sidebar(foto_persistida)
 
         lbl_nome = ctk.CTkLabel(
             self.card_user,
@@ -646,13 +650,12 @@ class MenuView(ctk.CTkFrame):
 
     def atualizar_avatar_sidebar(self, imagem_pil: Image.Image):
         """Recebe uma imagem PIL e atualiza o avatar circular na sidebar."""
-        imagem_mini = imagem_pil.copy()
-        imagem_mini.thumbnail((34, 34))
+        imagem_mini = avatar_circular(imagem_pil, 30)
 
         self.avatar_image = ctk.CTkImage(
             light_image=imagem_mini,
             dark_image=imagem_mini,
-            size=(34, 34),
+            size=(30, 30),
         )
 
         self.lbl_avatar.configure(image=self.avatar_image, text="")
@@ -732,6 +735,7 @@ class MenuView(ctk.CTkFrame):
                 self.container,
                 usuario_atual=self.usuario_logado,
                 on_foto_atualizada=self.atualizar_avatar_sidebar,
+                on_conta_excluida=self.on_logout,
             )
         else:
             nova_view = classe_view(self.container)

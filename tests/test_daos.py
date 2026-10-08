@@ -1,260 +1,72 @@
-import os
-import sys
+"""Testes dos DAOs MySQL com conexão simulada (nunca alteram dados reais)."""
 import unittest
-import tempfile
-
-# Adiciona o diretório do projeto ao sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from models.database import Database
+from unittest.mock import Mock
 from dao.usuario_dao import UsuarioDAO
 from dao.categoria_dao import CategoriaDAO
-from dao.meta_dao import MetaDAO
-from dao.terceiro_dao import TerceiroDAO
-from dao.saude_financeira_dao import SaudeFinanceiraDAO
 from dao.lancamento_dao import LancamentoDAO
-from models.usuario import Usuario
-from models.categoria import Categoria
-from models.meta import Meta
-from models.terceiro import Terceiro
-from models.saude_financeira import SaudeFinanceira
+from services.sessao import Sessao
 
 
-class TestDAOs(unittest.TestCase):
-
+class TestDAOMySQL(unittest.TestCase):
     def setUp(self):
-        # Cria um arquivo de banco temporário para os testes
-        self.temp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-        self.temp_db.close()
-        self.db = Database(db_path=self.temp_db.name)
+        self.db = Mock()
+        self.conn = self.db.get_connection.return_value
+        Sessao.limpar()
+        self.addCleanup(Sessao.limpar)
 
-        self.usuario_dao = UsuarioDAO(self.db)
-        self.categoria_dao = CategoriaDAO(self.db)
-        self.meta_dao = MetaDAO(self.db)
-        self.terceiro_dao = TerceiroDAO(self.db)
-        self.saude_dao = SaudeFinanceiraDAO(self.db)
-        self.lancamento_dao = LancamentoDAO(self.db)
+    def test_foto_perfil_persiste_no_mysql(self):
+        self.conn.execute.return_value.rowcount = 1
+        ok = UsuarioDAO(self.db).atualizar_foto(5, 'data/perfis/usuario_5_a.png')
+        self.assertTrue(ok)
+        self.conn.execute.assert_called_once_with(
+            'UPDATE usuario SET foto_perfil = %s WHERE id_usuario = %s',
+            ('data/perfis/usuario_5_a.png', 5))
+        self.conn.commit.assert_called_once()
 
-    def tearDown(self):
-        self.db.close()
-        if os.path.exists(self.temp_db.name):
-            os.remove(self.temp_db.name)
+    def test_busca_perfil_retorna_caminho_salvo(self):
+        self.conn.execute.return_value.fetchone.return_value = {
+            'id': 5, 'nome': 'A', 'tipo_perfil': 'PESSOAL',
+            'foto_perfil': 'data/perfis/usuario_5_a.png'}
+        usuario = UsuarioDAO(self.db).buscar_por_id(5)
+        self.assertEqual(usuario['foto_perfil'], 'data/perfis/usuario_5_a.png')
+        self.assertEqual(usuario['tipo_perfil'], 'PF')
 
-    def test_usuario_dao(self):
-        # 1. Inserir
-        uid = self.usuario_dao.inserir(
-            nome="Carlos Silva",
-            email="carlos@teste.com",
-            senha_hash="hash123",
-            tipo_perfil="PF",
-        )
-        self.assertIsNotNone(uid)
-        self.assertTrue(self.usuario_dao.existe_dados())
+    def test_categoria_usa_usuario_logado(self):
+        Sessao.definir(4)
+        self.conn.execute.return_value.lastrowid = 77
+        CategoriaDAO(self.db).inserir('Salário', 'Receita')
+        sql, params = self.conn.execute.call_args.args
+        self.assertIn('INSERT INTO categoria', sql)
+        self.assertEqual(params[0], 4)
+        self.assertEqual(params[2], 'RECEITA')
 
-        # 2. Buscar por ID e por Email
-        user = self.usuario_dao.buscar_por_id(uid)
-        self.assertIsNotNone(user)
-        self.assertEqual(user["nome"], "Carlos Silva")
-        self.assertEqual(user["email"], "carlos@teste.com")
+    def test_lancamento_cria_categoria_de_receita_corretamente(self):
+        Sessao.definir(4)
+        self.conn.execute.return_value.fetchone.return_value = None
+        self.conn.execute.return_value.lastrowid = 22
+        LancamentoDAO(self.db).inserir('Salário', 2500, 'Receita', 'Salário', '2026-10-01')
+        queries = [x.args for x in self.conn.execute.call_args_list]
+        self.assertEqual(queries[0][1], ('Salário', 4, 'RECEITA'))
+        self.assertIn('INSERT INTO categoria', queries[1][0])
+        self.assertEqual(queries[1][1][2], 'RECEITA')
+        self.assertEqual(queries[2][1][3], 'RECEITA')
 
-        user_email = self.usuario_dao.buscar_por_email("CARLOS@TESTE.COM")
-        self.assertIsNotNone(user_email)
-        self.assertEqual(user_email["id"], uid)
+    def test_lancamento_despesa_nao_reutiliza_categoria_receita(self):
+        Sessao.definir(9)
+        self.conn.execute.return_value.fetchone.return_value = None
+        self.conn.execute.return_value.lastrowid = 22
+        LancamentoDAO(self.db).inserir('Devolução', 40, 'Despesa', 'Outros', '2026-10-01')
+        self.assertEqual(self.conn.execute.call_args_list[0].args[1][-1], 'DESPESA')
+        self.assertEqual(self.conn.execute.call_args_list[1].args[1][2], 'DESPESA')
 
-        # 3. Listar
-        todos = self.usuario_dao.listar_todos()
-        self.assertEqual(len(todos), 1)
-
-        # 4. Atualizar
-        sucesso_att = self.usuario_dao.atualizar(uid, "Carlos S.", "carlos.novo@teste.com", "PJ")
-        self.assertTrue(sucesso_att)
-        user_att = self.usuario_dao.buscar_por_id(uid)
-        self.assertEqual(user_att["nome"], "Carlos S.")
-        self.assertEqual(user_att["tipo_perfil"], "PJ")
-
-        # 5. Alterar Senha
-        self.assertTrue(self.usuario_dao.alterar_senha(uid, "nova_hash"))
-        self.assertEqual(self.usuario_dao.buscar_por_id(uid)["senha_hash"], "nova_hash")
-
-        # 6. Excluir
-        self.assertTrue(self.usuario_dao.excluir(uid))
-        self.assertIsNone(self.usuario_dao.buscar_por_id(uid))
-        self.assertFalse(self.usuario_dao.existe_dados())
-
-    def test_categoria_dao(self):
-        # 1. Inserir
-        cid = self.categoria_dao.inserir(
-            nome="Alimentação",
-            tipo="Despesa",
-            escopo="Pessoal",
-            limite_orcamento=600.0,
-        )
-        self.assertIsNotNone(cid)
-        self.assertTrue(self.categoria_dao.existe_dados())
-
-        # 2. Buscar por ID
-        cat = self.categoria_dao.buscar_por_id(cid)
-        self.assertEqual(cat["nome"], "Alimentação")
-        self.assertEqual(cat["limite_orcamento"], 600.0)
-
-        # 3. Listar por tipo
-        despesas = self.categoria_dao.listar_por_tipo("Despesa")
-        self.assertEqual(len(despesas), 1)
-        receitas = self.categoria_dao.listar_por_tipo("Receita")
-        self.assertEqual(len(receitas), 0)
-
-        # 4. Atualizar limite
-        self.assertTrue(self.categoria_dao.atualizar_limite(cid, 750.0))
-        self.assertEqual(self.categoria_dao.buscar_por_id(cid)["limite_orcamento"], 750.0)
-
-        # 5. Excluir
-        self.assertTrue(self.categoria_dao.excluir(cid))
-        self.assertIsNone(self.categoria_dao.buscar_por_id(cid))
-
-    def test_meta_dao(self):
-        # 1. Inserir
-        mid = self.meta_dao.inserir(
-            descricao="Viagem de Férias",
-            valor_alvo=5000.0,
-            valor_atual=1000.0,
-            prazo="12 meses",
-            data_limite="2027-12-31",
-        )
-        self.assertIsNotNone(mid)
-
-        # 2. Buscar e calcular progresso com model
-        meta_dict = self.meta_dao.buscar_por_id(mid)
-        self.assertEqual(meta_dict["descricao"], "Viagem de Férias")
-        meta_obj = Meta(**meta_dict)
-        self.assertEqual(meta_obj.calcular_progresso(), 20.0)
-
-        # 3. Guardar valor
-        self.assertTrue(self.meta_dao.guardar_valor(mid, 1500.0))
-        meta_dict2 = self.meta_dao.buscar_por_id(mid)
-        self.assertEqual(meta_dict2["valor_atual"], 2500.0)
-        meta_obj2 = Meta(**meta_dict2)
-        self.assertEqual(meta_obj2.calcular_progresso(), 50.0)
-
-        # 4. Atualizar
-        self.assertTrue(
-            self.meta_dao.atualizar(mid, "Viagem Europa", 6000.0, "18 meses", "2028-06-30")
-        )
-        self.assertEqual(self.meta_dao.buscar_por_id(mid)["descricao"], "Viagem Europa")
-
-        # 5. Excluir
-        self.assertTrue(self.meta_dao.excluir(mid))
-        self.assertIsNone(self.meta_dao.buscar_por_id(mid))
-
-    def test_terceiro_dao(self):
-        # 1. Inserir
-        tid = self.terceiro_dao.inserir(nome="Empresa XYZ", relacao="Cliente")
-        self.assertIsNotNone(tid)
-
-        # 2. Buscar
-        terceiro = self.terceiro_dao.buscar_por_id(tid)
-        self.assertEqual(terceiro["nome"], "Empresa XYZ")
-        self.assertEqual(terceiro["relacao"], "Cliente")
-
-        # 3. Atualizar
-        self.assertTrue(self.terceiro_dao.atualizar(tid, "Empresa ABC", "Fornecedor"))
-        att = self.terceiro_dao.buscar_por_id(tid)
-        self.assertEqual(att["nome"], "Empresa ABC")
-        self.assertEqual(att["relacao"], "Fornecedor")
-
-        # 4. Excluir
-        self.assertTrue(self.terceiro_dao.excluir(tid))
-        self.assertIsNone(self.terceiro_dao.buscar_por_id(tid))
-
-    def test_saude_financeira_dao(self):
-        # Cria um usuário para respeitar a Foreign Key
-        uid = self.usuario_dao.inserir(
-            nome="Maria Teste",
-            email="maria@teste.com",
-            senha_hash="senha123",
-        )
-
-        # 1. Salvar diagnóstico
-        sid1 = self.saude_dao.salvar_diagnostico(
-            usuario_id=uid,
-            score=750,
-            plano_acao_json="[]",
-            data_atualizacao="2026-09-01",
-        )
-        sid2 = self.saude_dao.salvar_diagnostico(
-            usuario_id=uid,
-            score=820,
-            plano_acao_json="[]",
-            data_atualizacao="2026-09-18",
-        )
-        self.assertIsNotNone(sid1)
-        self.assertIsNotNone(sid2)
-
-        # 2. Buscar última avaliação
-        ultima = self.saude_dao.buscar_ultima_por_usuario(usuario_id=uid)
-        self.assertIsNotNone(ultima)
-        self.assertEqual(ultima["score"], 820)
-
-        # 3. Histórico
-        hist = self.saude_dao.listar_historico(usuario_id=uid)
-        self.assertEqual(len(hist), 2)
-
-        # 4. Excluir
-        self.assertTrue(self.saude_dao.excluir(sid1))
-        self.assertTrue(self.saude_dao.excluir(sid2))
-        self.assertFalse(self.saude_dao.existe_dados(usuario_id=uid))
-
-    def test_lancamento_dao(self):
-        # 1. Inserir (compatibilidade com interface original)
-        lid = self.lancamento_dao.inserir(
-            descricao="Salário",
-            valor=5000.0,
-            tipo="Receita",
-            categoria="Salário",
-            data="2026-09-05",
-        )
-        self.assertIsNotNone(lid)
-
-        self.lancamento_dao.inserir(
-            descricao="Aluguel",
-            valor=1500.0,
-            tipo="Despesa",
-            categoria="Moradia",
-            data="2026-09-10",
-        )
-
-        self.assertTrue(self.lancamento_dao.existe_dados())
-
-        # 2. Listar todos
-        todos = self.lancamento_dao.listar_todos()
-        self.assertEqual(len(todos), 2)
-
-        # 3. Listar por tipo
-        receitas = self.lancamento_dao.listar_por_tipo("Receita")
-        self.assertEqual(len(receitas), 1)
-        self.assertEqual(receitas[0]["description"], "Salário")
-
-        despesas = self.lancamento_dao.listar_por_tipo("Despesa")
-        self.assertEqual(len(despesas), 1)
-        self.assertEqual(despesas[0]["description"], "Aluguel")
-
-        # 4. Listar por categoria
-        moradia = self.lancamento_dao.listar_por_categoria("Moradia")
-        self.assertEqual(len(moradia), 1)
-
-        # 5. Atualizar
-        self.assertTrue(
-            self.lancamento_dao.atualizar(
-                lid, "Salário Mensal", 5500.0, "Receita", "Salário", "2026-09-05"
-            )
-        )
-        att = self.lancamento_dao.buscar_por_id(lid)
-        self.assertEqual(att["description"], "Salário Mensal")
-        self.assertEqual(att["value"], 5500.0)
-
-        # 6. Excluir
-        self.assertTrue(self.lancamento_dao.excluir(lid))
-        self.assertEqual(len(self.lancamento_dao.listar_todos()), 1)
+    def test_listagem_filtrada_pelo_usuario_logado(self):
+        Sessao.definir(15)
+        self.conn.execute.return_value.fetchall.return_value = []
+        LancamentoDAO(self.db).listar_todos()
+        query, params = self.conn.execute.call_args.args
+        self.assertIn('l.id_usuario = %s', query)
+        self.assertEqual(params, (15,))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

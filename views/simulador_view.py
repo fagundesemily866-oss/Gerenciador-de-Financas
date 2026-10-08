@@ -13,6 +13,7 @@ Laboratório de decisões financeiras e simulação preditiva:
 6. Seção Inferior: Principais Consequências e Parecer Inteligente da IA.
 """
 import tkinter as tk
+from tkinter import messagebox
 from datetime import datetime, date
 from typing import Optional, Dict, Any, List
 import customtkinter as ctk
@@ -370,8 +371,50 @@ class SimuladorView(ctk.CTkFrame):
         self.aporte_metas_mensal = 0.0
         self._montar_tela()
 
+    def _aplicar_cenario_salvo(self, cenario: dict):
+        parametros = cenario.get("parametros") or {}
+        meses = parametros.get("horizonte_meses", 12)
+        self.horizonte_anos = max(0.25, min(5.0, float(meses) / 12.0))
+        self.corte_despesas_pct = max(0., min(100., float(parametros.get("corte_despesas", 15))))
+        self.renda_extra_mensal = max(0., float(parametros.get("renda_extra", 0)))
+        self.aporte_metas_mensal = max(0., float(parametros.get("aporte_metas", 0)))
+        self._montar_tela()
+
     def _carregar_cenario(self):
-        pass
+        """Lista somente os cenários da conta logada e permite restaurar parâmetros."""
+        try:
+            cenarios = self.sim_dao.listar_todas()
+        except Exception as exc:
+            messagebox.showerror("Carregar cenário", f"Erro ao consultar o MySQL: {exc}", parent=self)
+            return
+        if not cenarios:
+            messagebox.showinfo("Carregar cenário", "Você ainda não salvou nenhum cenário.", parent=self)
+            return
+
+        janela = ctk.CTkToplevel(self)
+        janela.title("Carregar cenário salvo")
+        janela.geometry("500x420")
+        janela.transient(self.winfo_toplevel())
+        ctk.CTkLabel(janela, text="Escolha um cenário", font=fonte(18, "bold")).pack(padx=20, pady=(20, 8))
+        lista = ctk.CTkScrollableFrame(janela)
+        lista.pack(fill="both", expand=True, padx=20, pady=(4, 20))
+
+        def selecionar_cenario(cenario):
+            try:
+                self._aplicar_cenario_salvo(cenario)
+            except (TypeError, ValueError) as exc:
+                messagebox.showerror("Carregar cenário", f"Dados inválidos: {exc}", parent=janela)
+                return
+            janela.destroy()
+
+        for cenario in cenarios:
+            nome = cenario.get("nome") or f"Cenário {cenario.get('id', '')}"
+            data = str(cenario.get("data_criacao") or "")[:16]
+            ctk.CTkButton(
+                lista, text=f"{nome}  •  {data}", height=40, anchor="w",
+                command=lambda c=cenario: selecionar_cenario(c)
+            ).pack(fill="x", pady=4)
+        janela.after(100, lambda: janela.winfo_exists() and janela.grab_set())
 
     def _salvar_cenario(self):
         try:
@@ -384,8 +427,10 @@ class SimuladorView(ctk.CTkFrame):
                     "aporte_metas": self.aporte_metas_mensal,
                 },
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            messagebox.showerror("Salvar cenário", f"Não foi possível salvar: {exc}", parent=self)
+            return
+        messagebox.showinfo("Salvar cenário", "Cenário salvo na sua conta.", parent=self)
 
     # ==============================================================
     # 3. PAINEL DIREITO: RESULTADOS (dados reais via services.simulador_cenarios)

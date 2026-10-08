@@ -96,7 +96,7 @@ As principais tabelas são **usuario, categoria, lancamento, terceiro, meta_rese
 
 O diagrama abaixo mostra as principais tabelas e como seus registros se relacionam. As ligações representam os vínculos entre usuários, categorias, lançamentos, metas e os demais dados financeiros.
 
-![Diagrama lógico atualizado do banco de dados](docs/imagens/diagrama_logico_banco_v2.png)
+![Diagrama lógico atualizado do banco de dados](docs/imagens/diagrama_logico_banco.png)
 
 ## 🛠️ Tecnologias utilizadas
 
@@ -115,3 +115,9 @@ python -m unittest discover -s tests
 - **Assistente indisponível:** confira a conexão com a internet e a chave de API.
 
 > **Observações:** não publique seu arquivo `.env`, pois ele pode conter credenciais. O sistema não importa extratos bancários automaticamente e não oferece sincronização própria em nuvem. A IA depende de internet e pode enviar o conteúdo das consultas ao serviço Gemini.
+
+### 📷 Fotos de perfil e de contatos
+
+As imagens escolhidas no Perfil e em Terceiros são copiadas para `data/perfis/` e `data/terceiros/`. O MySQL guarda o caminho correspondente, e as fotos são carregadas automaticamente nos próximos acessos. **Não exclua essas pastas ao atualizar o projeto**: elas contêm fotos reais e são ignoradas pelo Git para proteger a privacidade. Ao transferir os dados para outro computador, copie também essas pastas (além de configurar o mesmo banco de dados ou importar seu backup).
+
+Os testes em `tests/` usam dados em memória ou conexões simuladas e não alteram contas reais. Os testes antigos para SQLite estão preservados em `tests/legacy_sqlite/` e não são executados por padrão.
