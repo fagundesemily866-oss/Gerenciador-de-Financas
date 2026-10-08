@@ -6,7 +6,7 @@ Laboratório de decisões financeiras e simulação preditiva:
 1. Topo: Tag 'PLANEJE SEU FUTURO', título explicativo e botões Carregar / Salvar Cenário.
 2. Painel Esquerdo: Configuração do Cenário com seletor de horizonte temporal (3m, 6m, 1 ano, 2 anos, 5 anos),
    sliders de corte de despesas (%), aumento de renda extra (R$) e aporte em metas (R$), com botões de ação.
-3. Abas Centrais: Projeção, Comparação de Cenários, Consequências e Visão por Metas.
+3. Abas Centrais: Comparação de Cenários, Consequências e Visão por Metas.
 4. Painel Central: Gráfico vetorial de evolução temporal no Canvas com curvas Otimista (Verde),
    Planejado (Azul) e Pessimista (Vermelho) com legenda de valores flutuante.
 5. 3 Cards Comparativos de Cenários com badges, valores projetados e acumulados.
@@ -57,7 +57,7 @@ class SimuladorView(ctk.CTkFrame):
         self.corte_despesas_pct = 15.0
         self.renda_extra_mensal = 0.0
         self.aporte_metas_mensal = 0.0
-        self.aba_ativa = "Projeção"
+        self.aba_ativa = "Comparação"
         self.visao_saldo = "Saldo Total"
 
         self.grid_columnconfigure(0, weight=1)
@@ -401,17 +401,21 @@ class SimuladorView(ctk.CTkFrame):
         "atrasada": ("✖ Atrasada", "#F43F5E"),
         "sem_prazo": ("• Sem prazo", "#94A3B8"),
         "sem_aporte": ("✖ Sem aporte", "#F43F5E"),
+        "concluida": ("✔ Meta concluída", "#00D084"),
     }
-    _ABAS = ["📊 Projeção", "⚖ Comparação de Cenários", "📑 Consequências", "🎯 Visão por Metas"]
+    _ABAS = ["⚖ Comparação", "📑 Consequências", "🎯 Visão por Metas"]
 
     @staticmethod
     def _brl(v: float) -> str:
         return "R$ " + f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-    def _calcular(self):
+    def _calcular(self, metas=None):
+        """Usa o MetaDAO (MySQL/migrations), o mesmo da tela Minhas Metas."""
+        if metas is None:
+            metas = self.meta_dao.listar_todas()
         return simular(
             self.dao.listar_todos(),
-            self.meta_dao.listar_todas(),
+            metas,
             max(1, int(round(self.horizonte_anos * 12))),
             self.corte_despesas_pct,
             self.renda_extra_mensal,
@@ -433,7 +437,8 @@ class SimuladorView(ctk.CTkFrame):
     def _desenhar_abas(self):
         for w in self._abas_box.winfo_children():
             w.destroy()
-        for a_txt in self._ABAS:
+        self._abas_box.grid_columnconfigure(tuple(range(len(self._ABAS))), weight=1, uniform="aba")
+        for i, a_txt in enumerate(self._ABAS):
             ativo = (self.aba_ativa in a_txt)
             ctk.CTkButton(
                 self._abas_box, text=a_txt, height=30, corner_radius=8,
@@ -441,7 +446,7 @@ class SimuladorView(ctk.CTkFrame):
                 text_color="#00D084" if ativo else COR_TEXTO_SECUNDARIO,
                 font=fonte(11, "bold" if ativo else "normal"),
                 command=lambda a=a_txt.split()[1]: self._set_aba(a),
-            ).pack(side="left", padx=4, pady=4)
+            ).grid(row=0, column=i, sticky="ew", padx=4, pady=4)
 
     def _set_aba(self, a: str):
         self.aba_ativa = a
@@ -456,26 +461,30 @@ class SimuladorView(ctk.CTkFrame):
     def _render_resultados(self):
         for w in self._area_result.winfo_children():
             w.destroy()
+
+        if self.aba_ativa == "Visão":
+            # Busca novamente as metas no MySQL a cada abertura/atualização da aba.
+            # Não depender de ter lançamentos para exibir metas já cadastradas.
+            metas = self.meta_dao.listar_todas()
+            res = self._calcular(metas=metas)
+            self._res = res
+            self._build_visao_metas(self._area_result, res, metas=metas)
+            return
+
         res = self._calcular()
         if res is None:
             card = ctk.CTkFrame(self._area_result, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
             card.pack(fill="x")
             ctk.CTkLabel(card, text="Ainda não há lançamentos para simular.", font=fonte(14, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(pady=(24, 4))
-            ctk.CTkLabel(card, text="Cadastre receitas e despesas (ou use \"Criar finanças aleatórias\" ao criar a conta) para ver os cenários.",
+            ctk.CTkLabel(card, text='Cadastre receitas e despesas (ou use "Criar finanças aleatórias" ao criar a conta) para ver os cenários.',
                          font=fonte(11), text_color=COR_TEXTO_MUTED, wraplength=520).pack(pady=(0, 24), padx=16)
             return
         self._res = res
-        if self.aba_ativa == "Projeção":
-            self._build_bloco_grafico(self._area_result, res)
-            self._build_cards_cenarios(self._area_result, res)
-            self._build_consequencias(self._area_result, res, resumido=True)
-        elif self.aba_ativa == "Comparação":
+        if self.aba_ativa == "Comparação":
             self._build_cards_cenarios(self._area_result, res)
             self._build_tabela_comparacao(self._area_result, res)
-        elif self.aba_ativa == "Consequências":
-            self._build_consequencias(self._area_result, res)
         else:
-            self._build_visao_metas(self._area_result, res)
+            self._build_consequencias(self._area_result, res)
 
     def _card(self, parent, titulo, subtitulo=None):
         card = ctk.CTkFrame(parent, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
@@ -485,66 +494,47 @@ class SimuladorView(ctk.CTkFrame):
             ctk.CTkLabel(card, text=subtitulo, font=fonte(10), text_color=COR_TEXTO_MUTED, anchor="w", wraplength=560, justify="left").pack(anchor="w", padx=16)
         return card
 
-    # ---------------- Projeção: gráfico ----------------
-    def _build_bloco_grafico(self, parent, res):
-        card = self._card(parent, "📈  Projeção do Saldo ao Longo do Tempo",
-                          f"Saldo acumulado em {res['horizonte']} meses, a partir dos seus lançamentos reais.")
-        canvas = tk.Canvas(card, height=190, bg=obter_cor(COR_CARD), highlightthickness=0)
-        canvas.pack(fill="x", padx=16, pady=(4, 12))
-
-        def desenhar(e=None):
-            canvas.delete("all")
-            w = max(canvas.winfo_width(), 300)
-            h = 190
-            ml, mr, mt, mb = 70, 16, 14, 26
-            series = {k: [res["saldo_inicial"]] + c["evolucao"] for k, c in res["cenarios"].items()}
-            vmin = min(min(v) for v in series.values())
-            vmax = max(max(v) for v in series.values())
-            if vmax == vmin:
-                vmax = vmin + 1
-            n = res["horizonte"]
-
-            def xy(i, v):
-                return ml + (w - ml - mr) * i / n, mt + (h - mt - mb) * (1 - (v - vmin) / (vmax - vmin))
-
-            for f in (0, 0.5, 1):
-                v = vmin + (vmax - vmin) * f
-                _, y = xy(0, v)
-                canvas.create_line(ml, y, w - mr, y, fill=obter_cor(COR_BORDA))
-                canvas.create_text(ml - 6, y, text=self._brl(v).replace(",00", ""), anchor="e", fill=obter_cor(COR_TEXTO_MUTED), font=("Segoe UI", 8))
-            for i in (0, n // 2, n):
-                x, _ = xy(i, vmin)
-                canvas.create_text(x, h - 10, text=f"{i}m", fill=obter_cor(COR_TEXTO_MUTED), font=("Segoe UI", 8))
-            for k, vals in series.items():
-                pts = [c for i, v in enumerate(vals) for c in xy(i, v)]
-                canvas.create_line(*pts, fill=self._CORES[k][2], width=2, smooth=False)
-
-        canvas.bind("<Configure>", desenhar)
-        self.after(30, desenhar)
-        leg = ctk.CTkFrame(card, fg_color="transparent")
-        leg.pack(anchor="w", padx=16, pady=(0, 10))
-        for k, c in res["cenarios"].items():
-            ctk.CTkLabel(leg, text=f"●  {c['nome']}", font=fonte(10, "bold"), text_color=self._CORES[k][2]).pack(side="left", padx=(0, 14))
-
     # ---------------- Cards dos 3 cenários ----------------
     def _build_cards_cenarios(self, parent, res):
+        """Três cards lado a lado; em área estreita empilham em uma coluna (sem cortar texto)."""
         grid = ctk.CTkFrame(parent, fg_color="transparent")
         grid.pack(fill="x", pady=(0, 12))
-        grid.grid_columnconfigure((0, 1, 2), weight=1)
-        for i, (k, c) in enumerate(res["cenarios"].items()):
+        cards = []
+        for k, c in res["cenarios"].items():
             ic, bg, cor = self._CORES[k]
             card = ctk.CTkFrame(grid, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=cor)
-            card.grid(row=0, column=i, sticky="nsew", padx=(0 if i == 0 else 6, 0 if i == 2 else 6))
-            ctk.CTkLabel(card, text=f"{ic}  Cenário {c['nome']}", font=fonte(12, "bold"), text_color=cor).pack(anchor="w", padx=14, pady=(12, 2))
-            ctk.CTkLabel(card, text=self._brl(c["saldo_final"]), font=fonte(18, "bold"), text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", padx=14)
-            ctk.CTkLabel(card, text="acumulado ao final", font=fonte(10), text_color=COR_TEXTO_MUTED).pack(anchor="w", padx=14)
-            ctk.CTkLabel(card, text=f"Economizado: {self._brl(c['economizado'])}", font=fonte(10), text_color=COR_TEXTO_SECUNDARIO).pack(anchor="w", padx=14, pady=(6, 0))
+            ctk.CTkLabel(card, text=f"{ic}  {c['nome']}", font=fonte(12, "bold"), text_color=cor, anchor="w").pack(fill="x", padx=12, pady=(12, 2))
+            ctk.CTkLabel(card, text=self._brl(c["saldo_final"]), font=fonte(16, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(fill="x", padx=12)
+            ctk.CTkLabel(card, text="acumulado ao final", font=fonte(10), text_color=COR_TEXTO_MUTED, anchor="w").pack(fill="x", padx=12)
+            ctk.CTkLabel(card, text="Economizado", font=fonte(10), text_color=COR_TEXTO_MUTED, anchor="w").pack(fill="x", padx=12, pady=(8, 0))
+            ctk.CTkLabel(card, text=self._brl(c["economizado"]), font=fonte(11, "bold"), text_color=COR_TEXTO_SECUNDARIO, anchor="w").pack(fill="x", padx=12)
             if k != "planejado":
                 d = c["diferenca_vs_planejado"]
-                ctk.CTkLabel(card, text=f"{'+' if d >= 0 else '-'}{self._brl(abs(d))} vs planejado", font=fonte(10, "bold"),
-                             text_color="#00D084" if d >= 0 else "#F43F5E").pack(anchor="w", padx=14, pady=(0, 12))
+                ctk.CTkLabel(card, text=f"{'+' if d >= 0 else '-'}{self._brl(abs(d))}", font=fonte(11, "bold"),
+                             text_color="#00D084" if d >= 0 else "#F43F5E", anchor="w").pack(fill="x", padx=12, pady=(8, 0))
+                ctk.CTkLabel(card, text="vs planejado", font=fonte(10), text_color=COR_TEXTO_MUTED, anchor="w").pack(fill="x", padx=12, pady=(0, 12))
             else:
-                ctk.CTkLabel(card, text="Cenário base", font=fonte(10), text_color=COR_TEXTO_MUTED).pack(anchor="w", padx=14, pady=(0, 12))
+                ctk.CTkLabel(card, text="Cenário base", font=fonte(11, "bold"), text_color=COR_TEXTO_SECUNDARIO, anchor="w").pack(fill="x", padx=12, pady=(8, 0))
+                ctk.CTkLabel(card, text="referência de comparação", font=fonte(10), text_color=COR_TEXTO_MUTED, anchor="w").pack(fill="x", padx=12, pady=(0, 12))
+            cards.append(card)
+
+        estado = {"cols": None}
+
+        def reflow(_e=None):
+            cols = 3 if grid.winfo_width() >= 600 else 1
+            if cols == estado["cols"]:
+                return
+            estado["cols"] = cols
+            for i in range(3):
+                grid.grid_columnconfigure(i, weight=1 if i < cols else 0, uniform="cen" if i < cols else "")
+            for i, card in enumerate(cards):
+                if cols == 3:
+                    card.grid(row=0, column=i, sticky="nsew", padx=(0 if i == 0 else 5, 0 if i == 2 else 5), pady=0)
+                else:
+                    card.grid(row=i, column=0, sticky="ew", padx=0, pady=(0 if i == 0 else 8, 0))
+
+        grid.bind("<Configure>", reflow)
+        reflow()
 
     # ---------------- Comparação ----------------
     def _build_tabela_comparacao(self, parent, res):
@@ -580,38 +570,141 @@ class SimuladorView(ctk.CTkFrame):
         ctk.CTkFrame(card, height=8, fg_color="transparent").pack()
 
     # ---------------- Visão por Metas ----------------
-    def _build_visao_metas(self, parent, res):
-        plan = res["cenarios"]["planejado"]
-        if not plan["metas"]:
+    @staticmethod
+    def _formatar_prazo(valor) -> str:
+        """Exibe a data real da meta, vinda de meta_reserva.data_limite."""
+        if isinstance(valor, (date, datetime)):
+            return valor.strftime("%d/%m/%Y")
+        if not valor:
+            return ""
+        try:
+            return datetime.strptime(str(valor)[:10], "%Y-%m-%d").strftime("%d/%m/%Y")
+        except ValueError:
+            return str(valor)
+
+    def _build_visao_metas(self, parent, res, metas=None):
+        """Mostra TODAS as metas reais: em andamento e concluídas.
+
+        Se faltam lançamentos, mostra os valores reais sem inventar projeções.
+        """
+        metas = metas if metas is not None else self.meta_dao.listar_todas()
+        resumo = ctk.CTkFrame(parent, fg_color="transparent")
+        resumo.pack(fill="x", pady=(0, 10))
+        ctk.CTkLabel(
+            resumo, text=f"{len(metas)} meta(s) cadastrada(s)",
+            font=fonte(11), text_color=COR_TEXTO_SECUNDARIO,
+        ).pack(side="left")
+        ctk.CTkButton(
+            resumo, text="↻  Atualizar metas", width=130, height=28,
+            fg_color=COR_CARD_INTERNO, hover_color=COR_CARD,
+            border_width=1, border_color=COR_BORDA,
+            text_color=COR_TEXTO_PRINCIPAL, font=fonte(10),
+            command=self._render_resultados,
+        ).pack(side="right")
+
+        if not metas:
             card = self._card(parent, "🎯  Visão por Metas")
-            ctk.CTkLabel(card, text="Nenhuma meta em andamento. Cadastre uma meta para ver o impacto de cada cenário.",
-                         font=fonte(11), text_color=COR_TEXTO_MUTED, wraplength=520).pack(padx=16, pady=(8, 20))
+            ctk.CTkLabel(
+                card, text="Nenhuma meta cadastrada. Crie uma meta em 'Minhas Metas' para acompanhá-la aqui.",
+                font=fonte(11), text_color=COR_TEXTO_MUTED,
+                wraplength=520, justify="left",
+            ).pack(anchor="w", padx=16, pady=(8, 20))
             return
-        for idx, mp in enumerate(plan["metas"]):
-            card = self._card(parent, f"🎯  {mp['nome']}",
-                              f"{self._brl(mp['atual'])} de {self._brl(mp['alvo'])}  •  faltam {self._brl(mp['restante'])}"
-                              + (f"  •  prazo {mp['prazo'].strftime('%d/%m/%Y')}" if mp["prazo"] else ""))
+
+        if res is None:
+            aviso = self._card(
+                parent, "Projeções indisponíveis",
+                "Suas metas já aparecem abaixo com os valores reais. Cadastre receitas e despesas "
+                "para ver a comparação dos cenários otimista, planejado e pessimista.",
+            )
+            ctk.CTkFrame(aviso, height=10, fg_color="transparent").pack()
+            metas_exibidas = []
+            for m in metas:
+                alvo = float(m.get("valor_alvo") or 0)
+                atual = float(m.get("valor_atual") or 0)
+                concluida = bool(m.get("concluida")) or (alvo > 0 and atual >= alvo)
+                metas_exibidas.append({
+                    "nome": m.get("descricao") or "Meta",
+                    "atual": atual, "alvo": alvo,
+                    "restante": max(0.0, alvo - atual),
+                    "pct_atual": min(100.0, 100 * atual / alvo) if alvo > 0 else 0,
+                    "prazo": m.get("data_limite"),
+                    "status": "concluida" if concluida else "sem_projecao",
+                })
+        else:
+            metas_exibidas = res["cenarios"]["planejado"]["metas"]
+
+        for idx, mp in enumerate(metas_exibidas):
+            prazo = self._formatar_prazo(mp.get("prazo"))
+            subtitulo = (
+                f"{self._brl(mp['atual'])} de {self._brl(mp['alvo'])}"
+                f"  •  faltam {self._brl(mp['restante'])}"
+                + (f"  •  prazo {prazo}" if prazo else "")
+            )
+            card = self._card(parent, f"🎯  {mp['nome']}", subtitulo)
             barra = ctk.CTkProgressBar(card, height=10, progress_color="#00D084")
-            barra.pack(fill="x", padx=16, pady=(6, 0))
-            barra.set(min(1.0, mp["pct_atual"] / 100))
-            ctk.CTkLabel(card, text=f"{mp['pct_atual']:.0f}% concluído hoje", font=fonte(10), text_color=COR_TEXTO_MUTED).pack(anchor="w", padx=16)
+            barra.pack(fill="x", padx=16, pady=(10, 0))
+            barra.set(max(0.0, min(1.0, mp["pct_atual"] / 100)))
+            ctk.CTkLabel(
+                card, text=f"{mp['pct_atual']:.0f}% do valor-alvo guardado",
+                font=fonte(10), text_color=COR_TEXTO_MUTED,
+            ).pack(anchor="w", padx=16, pady=(4, 0))
+
+            if mp["status"] == "concluida":
+                ctk.CTkLabel(
+                    card, text="✔  Meta concluída — os valores acima são os reais do banco.",
+                    font=fonte(11, "bold"), text_color="#00D084",
+                    wraplength=500, justify="left",
+                ).pack(anchor="w", padx=16, pady=(8, 16))
+                continue
+
+            if res is None:
+                ctk.CTkLabel(
+                    card, text="Em andamento  •  aguardando lançamentos para calcular projeções.",
+                    font=fonte(10), text_color=COR_TEXTO_SECUNDARIO,
+                    wraplength=500, justify="left",
+                ).pack(anchor="w", padx=16, pady=(8, 16))
+                continue
 
             linha = ctk.CTkFrame(card, fg_color="transparent")
             linha.pack(fill="x", padx=12, pady=(8, 12))
-            linha.grid_columnconfigure((0, 1, 2), weight=1)
-            for j, k in enumerate(("otimista", "planejado", "pessimista")):
+            caixas = []
+            for k in ("otimista", "planejado", "pessimista"):
                 m = res["cenarios"][k]["metas"][idx]
                 _, _, cor = self._CORES[k]
                 rotulo, cor_status = self._STATUS[m["status"]]
-                box = ctk.CTkFrame(linha, fg_color=COR_CARD_INTERNO, corner_radius=8, border_width=1, border_color=cor_status)
-                box.grid(row=0, column=j, sticky="nsew", padx=4)
+                box = ctk.CTkFrame(linha, fg_color=COR_CARD_INTERNO, corner_radius=8,
+                                   border_width=1, border_color=cor_status)
                 ctk.CTkLabel(box, text=res["cenarios"][k]["nome"], font=fonte(10, "bold"), text_color=cor).pack(anchor="w", padx=10, pady=(8, 0))
-                ctk.CTkLabel(box, text=rotulo, font=fonte(12, "bold"), text_color=cor_status).pack(anchor="w", padx=10)
+                ctk.CTkLabel(box, text=rotulo, font=fonte(11, "bold"), text_color=cor_status).pack(anchor="w", padx=10)
                 tempo = f"{m['meses']} meses" if m["meses"] is not None else "—"
                 ctk.CTkLabel(box, text=f"Atinge em: {tempo}", font=fonte(10), text_color=COR_TEXTO_SECUNDARIO).pack(anchor="w", padx=10)
                 ctk.CTkLabel(box, text=f"Aporte: {self._brl(m['aporte_mensal'])}/mês", font=fonte(10), text_color=COR_TEXTO_SECUNDARIO).pack(anchor="w", padx=10)
                 ctk.CTkLabel(box, text=f"Previsão: {m['pct_fim_horizonte']:.0f}% em {res['horizonte']}m", font=fonte(10), text_color=COR_TEXTO_SECUNDARIO).pack(anchor="w", padx=10)
                 if m["falta_no_prazo"] is not None and m["falta_no_prazo"] > 0:
                     ctk.CTkLabel(box, text=f"Faltaria no prazo: {self._brl(m['falta_no_prazo'])}", font=fonte(10), text_color="#F43F5E").pack(anchor="w", padx=10)
-                ctk.CTkLabel(box, text=frase_meta(m, res["cenarios"][k]["nome"].lower()), font=fonte(10, "bold"), text_color=cor_status,
-                             wraplength=150, justify="left").pack(anchor="w", padx=10, pady=(4, 8))
+                ctk.CTkLabel(
+                    box, text=frase_meta(m, res["cenarios"][k]["nome"].lower()),
+                    font=fonte(10, "bold"), text_color=cor_status,
+                    wraplength=300, justify="left", anchor="w",
+                ).pack(fill="x", padx=10, pady=(4, 8))
+                caixas.append(box)
+
+            # Em áreas pequenas empilha os cenários, evitando textos cortados.
+            estado = {"colunas": None}
+
+            def reorganizar(_evento=None, *, painel=linha, cards=caixas, memoria=estado):
+                colunas = 3 if painel.winfo_width() >= 660 else 1
+                if colunas == memoria["colunas"]:
+                    return
+                memoria["colunas"] = colunas
+                for j in range(3):
+                    painel.grid_columnconfigure(j, weight=1 if j < colunas else 0)
+                for j, caixa in enumerate(cards):
+                    coluna = j if colunas == 3 else 0
+                    linha_idx = 0 if colunas == 3 else j
+                    caixa.grid(row=linha_idx, column=coluna, sticky="nsew",
+                               padx=4, pady=(0 if linha_idx == 0 else 8, 0))
+
+            linha.bind("<Configure>", reorganizar)
+            reorganizar()

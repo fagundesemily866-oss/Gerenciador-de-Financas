@@ -1,6 +1,7 @@
 """
 View de Metas Financeiras — Com dados reais, celebração de meta atingida e modo claro correto.
 """
+import re
 import tkinter as tk
 from datetime import datetime, date
 from typing import Optional, List
@@ -634,93 +635,97 @@ class MetaView(ctk.CTkFrame):
             command=self._salvar_meta,
         ).pack(fill="x", padx=16, pady=(0, 16))
 
+    @staticmethod
+    def _parse_valor(texto: str) -> float:
+        """Converte 'R$ 1.500,50', '1500,50' ou '1500.50' em float."""
+        t = (texto or "").replace("R$", "").replace(" ", "").strip()
+        if not t:
+            return 0.0
+        if "," in t:
+            t = t.replace(".", "").replace(",", ".")
+        elif re.fullmatch(r"\d{1,3}(\.\d{3})+", t):
+            t = t.replace(".", "")  # '2.000' → 2000 (separador de milhar pt-BR)
+        return float(t)
+
     def _salvar_meta(self):
+        from tkinter import messagebox
+
         desc = self.entry_desc.get().strip()
         if not desc:
+            messagebox.showwarning("Nova meta", "Informe o objetivo / descrição da meta.")
             return
 
         try:
-            alvo = float(self.entry_alvo.get().replace("R$", "").replace(".", "").replace(",", ".").strip() or "0")
-            atual = float(self.entry_atual.get().replace("R$", "").replace(".", "").replace(",", ".").strip() or "0")
-        except Exception:
+            alvo = self._parse_valor(self.entry_alvo.get())
+            atual = self._parse_valor(self.entry_atual.get())
+        except ValueError:
+            messagebox.showwarning("Nova meta", "Informe valores numéricos válidos (ex.: 1500,00).")
+            return
+
+        if alvo <= 0:
+            messagebox.showwarning("Nova meta", "O valor alvo deve ser maior que zero.")
+            return
+        if atual < 0:
+            messagebox.showwarning("Nova meta", "O valor já guardado não pode ser negativo.")
             return
 
         data_lim = self.entry_data.get().strip() or None
         prazo = self.combo_prazo.get() if hasattr(self, "combo_prazo") else None
 
-        self.dao.inserir(
-            descricao=desc,
-            valor_alvo=alvo,
-            valor_atual=atual,
-            prazo=prazo,
-            data_limite=data_lim,
-        )
+        try:
+            self.dao.inserir(
+                descricao=desc,
+                valor_alvo=alvo,
+                valor_atual=atual,
+                prazo=prazo,
+                data_limite=data_lim,
+            )
+        except ValueError as exc:
+            # Data inválida / sem usuário logado
+            messagebox.showwarning("Nova meta", str(exc))
+            return
+        except Exception as exc:
+            messagebox.showerror("Nova meta", f"Não foi possível salvar a meta:\n{exc}")
+            return
+
         # Limpar campos
         self.entry_desc.delete(0, "end")
         self.entry_alvo.delete(0, "end")
         self.entry_atual.delete(0, "end")
+        self.entry_mensal.delete(0, "end")
         self.entry_data.delete(0, "end")
         self._montar_tela()
 
     def _build_card_projecao(self, parent):
-        card = ctk.CTkFrame(parent, fg_color=COR_CARD, corner_radius=14, border_width=1, border_color=COR_BORDA)
+        """Exibe o progresso real salvo no MySQL sem gráfico ou valores inventados."""
+        card = ctk.CTkFrame(parent, fg_color=COR_CARD, corner_radius=14,
+                            border_width=1, border_color=COR_BORDA)
         card.pack(fill="x")
+        ctk.CTkLabel(card, text="📈  Progresso das suas metas", font=fonte(12, "bold"),
+                     text_color=COR_TEXTO_PRINCIPAL).pack(anchor="w", padx=16, pady=(15, 4))
+        metas = self.dao.listar_todas()
+        if not metas:
+            ctk.CTkLabel(card, text="Cadastre uma meta para acompanhar o progresso aqui.",
+                         font=fonte(11), text_color=COR_TEXTO_SECUNDARIO,
+                         wraplength=300, justify="left").pack(anchor="w", padx=16, pady=(6, 18))
+            return
 
-        topo = ctk.CTkFrame(card, fg_color="transparent")
-        topo.pack(fill="x", padx=16, pady=(14, 6))
-
-        ctk.CTkLabel(topo, text="📈", font=fonte(14)).pack(side="left", padx=(0, 6))
-        t_box = ctk.CTkFrame(topo, fg_color="transparent")
-        t_box.pack(side="left", fill="x", expand=True)
-
-        ctk.CTkLabel(t_box, text="Projeção de economia", font=fonte(12, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w")
-        ctk.CTkLabel(t_box, text="Veja como sua meta pode evoluir com contribuições mensais.", font=fonte(9), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w")
-
-        # Gráfico Vetorial de Linha de Evolução
-        canvas_proj = tk.Canvas(card, height=130, bg=obter_cor(COR_CARD), highlightthickness=0)
-        canvas_proj.pack(fill="x", padx=16, pady=(4, 12))
-
-        def desenhar_proj(e=None):
-            canvas_proj.delete("all")
-            w = canvas_proj.winfo_width()
-            h = canvas_proj.winfo_height()
-            if w <= 10 or h <= 10:
-                w, h = 320, 130
-
-            m_esq, m_dir, m_top, m_bot = 40, 20, 20, 25
-
-            # Eixo Y
-            y_levels = [(0.0, "R$ 6 mil"), (0.33, "R$ 4 mil"), (0.66, "R$ 2 mil"), (1.0, "R$ 0")]
-            for pct, txt in y_levels:
-                y = m_top + pct * (h - m_top - m_bot)
-                canvas_proj.create_line(m_esq, y, w - m_dir, y, fill="#1A2D3C", dash=(2, 4))
-                canvas_proj.create_text(m_esq - 6, y, text=txt, fill="#64748B", font=("Segoe UI", 7), anchor="e")
-
-            # Pontos
-            x_steps = ["Hoje", "3 meses", "6 meses", "9 meses", "12 meses"]
-            coords = [(0.0, 1.0), (0.25, 0.75), (0.50, 0.45), (0.75, 0.35), (1.0, 0.17)]
-
-            pts = []
-            for i, (p_x, p_y) in enumerate(coords):
-                x = m_esq + p_x * (w - m_esq - m_dir)
-                y = m_top + p_y * (h - m_top - m_bot)
-                pts.append((x, y))
-                canvas_proj.create_text(x, h - 10, text=x_steps[i], fill="#8EA3B8", font=("Segoe UI", 7))
-
-            # Linha teal neon
-            for i in range(len(pts) - 1):
-                canvas_proj.create_line(pts[i][0], pts[i][1], pts[i+1][0], pts[i+1][1], fill="#00D084", width=2)
-            for x, y in pts:
-                canvas_proj.create_oval(x-3, y-3, x+3, y+3, fill="#00D084", outline="#101C26", width=1.5)
-
-            # Tag R$ 5.000 no final
-            last_x, last_y = pts[-1]
-            canvas_proj.create_line(last_x, last_y, last_x, h - m_bot, fill="#00D084", dash=(2, 2))
-            canvas_proj.create_rectangle(last_x - 30, last_y - 18, last_x + 10, last_y - 4, fill="#0D2E2B", outline="#00D084")
-            canvas_proj.create_text(last_x - 10, last_y - 11, text="R$ 5.000", fill="#00D084", font=("Segoe UI", 8, "bold"))
-
-        canvas_proj.bind("<Configure>", desenhar_proj)
-        canvas_proj.after(100, desenhar_proj)
+        for meta in metas[:4]:
+            nome = meta.get("descricao", "Meta")
+            atual = float(meta.get("valor_atual", 0) or 0)
+            alvo = float(meta.get("valor_alvo", 0) or 0)
+            progresso = min(1.0, max(0.0, atual / alvo)) if alvo > 0 else 0.0
+            linha = ctk.CTkFrame(card, fg_color=COR_CARD_INTERNO, corner_radius=9)
+            linha.pack(fill="x", padx=14, pady=5)
+            ctk.CTkLabel(linha, text=f"{nome}   •   {progresso:.0%}", font=fonte(11, "bold"),
+                         text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w", padx=12, pady=(8, 2))
+            ctk.CTkLabel(linha, text=f"R$ {atual:,.2f} de R$ {alvo:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+                         font=fonte(10), text_color=COR_TEXTO_SECUNDARIO,
+                         anchor="w").pack(anchor="w", padx=12, pady=(0, 5))
+            barra = ctk.CTkProgressBar(linha, progress_color="#00D084", fg_color="#253645")
+            barra.set(progresso)
+            barra.pack(fill="x", padx=12, pady=(0, 11))
+        ctk.CTkLabel(card, text="", height=5).pack()
 
     def _set_filtro(self, aba: str):
         self.filtro_aba = aba

@@ -48,16 +48,7 @@ STATUS_POR_TIPO = {
 
 LIMITE_LINHAS = 30
 
-# Itens de demonstração (aparecem apenas enquanto não houver lançamentos reais no banco)
-DEMO_ITENS: List[Dict[str, Any]] = [
-    {"id": None, "descricao": "Supermercado Extra", "sub": "Compras do mês", "categoria": "Alimentação", "tipo": "Despesa", "valor": 320.50, "data": date(2026, 9, 29), "status": "Pago", "icone": "🛒"},
-    {"id": None, "descricao": "Salário", "sub": "Empresa XYZ", "categoria": "Salário", "tipo": "Receita", "valor": 3500.00, "data": date(2026, 9, 28), "status": "Pago", "icone": "💼"},
-    {"id": None, "descricao": "Aluguel", "sub": "Apartamento", "categoria": "Moradia", "tipo": "Despesa", "valor": 1200.00, "data": date(2026, 9, 25), "status": "Pago", "icone": "🏠"},
-    {"id": None, "descricao": "Rendimento CDB", "sub": "Banco Inter", "categoria": "Investimentos", "tipo": "Receita", "valor": 150.00, "data": date(2026, 9, 23), "status": "Pago", "icone": "📈"},
-    {"id": None, "descricao": "Conta de Luz", "sub": "Enel", "categoria": "Contas", "tipo": "Despesa", "valor": 180.90, "data": date(2026, 9, 20), "status": "Pago", "icone": "💡"},
-    {"id": None, "descricao": "Combustível", "sub": "Posto Ipiranga", "categoria": "Transporte", "tipo": "Despesa", "valor": 230.00, "data": date(2026, 9, 18), "status": "Pago", "icone": "🚗"},
-    {"id": None, "descricao": "Freelance - Projeto", "sub": "Cliente ABC", "categoria": "Serviços", "tipo": "Receita", "valor": 1200.00, "data": date(2026, 9, 15), "status": "Recebido", "icone": "💻"},
-]
+# Lançamentos serão lidos exclusivamente do MySQL; nenhum exemplo embutido.
 
 
 # ==================================================================
@@ -123,7 +114,6 @@ class LancamentoView(ctk.CTkFrame):
 
         self._itens: List[Dict[str, Any]] = []
         self._usando_demo = False
-        self._demo_itens = [dict(i) for i in DEMO_ITENS]
 
         self._scroll = None
         self._aviso_job = None
@@ -181,14 +171,14 @@ class LancamentoView(ctk.CTkFrame):
     # DADOS
     # ==============================================================
     def _carregar_itens(self) -> Tuple[List[Dict[str, Any]], bool]:
-        """Lê os lançamentos do banco (mais recentes primeiro). Sem dados reais, usa a demonstração."""
+        """Lê somente os lançamentos do usuário autenticado, sem amostras fictícias."""
         try:
             reais = self.dao.listar_todos() or []
         except Exception:
             reais = []
 
         if not reais:
-            return list(self._demo_itens), True
+            return [], False
 
         itens = [self._normalizar(r) for r in reais]
         itens.sort(key=lambda i: (i["data"] or date.min, i["id"] or 0), reverse=True)
@@ -328,29 +318,14 @@ class LancamentoView(ctk.CTkFrame):
 
         ctk.CTkLabel(nav_mes, text="📅", font=fonte(12)).pack(side="left", padx=(10, 4))
 
-        self.mes_combo = ctk.CTkOptionMenu(
-            nav_mes,
-            values=["Setembro de 2026", "Agosto de 2026", "Julho de 2026", "Abril de 2026"],
-            width=140,
-            height=30,
-            fg_color=COR_CARD,
-            button_color=COR_CARD_INTERNO,
-            button_hover_color=COR_CARD_INTERNO,
-            text_color=COR_TEXTO_PRINCIPAL,
-            font=fonte(12),
-        )
-        self.mes_combo.set("Setembro de 2026")
-        self.mes_combo.pack(side="left", padx=2, pady=3)
-
+        # Histórico completo, sem seletor de meses fictício/inativo.
+        ctk.CTkLabel(nav_mes, text="Histórico completo", font=fonte(12),
+                     text_color=COR_TEXTO_SECUNDARIO).pack(side="left", padx=(2, 10), pady=8)
         ctk.CTkButton(
-            nav_mes, text="‹", width=28, height=28, corner_radius=6,
-            fg_color="transparent", hover_color=COR_CARD_INTERNO, text_color=COR_TEXTO_SECUNDARIO, font=fonte(16, "bold")
-        ).pack(side="left", padx=(0, 2), pady=3)
-
-        ctk.CTkButton(
-            nav_mes, text="›", width=28, height=28, corner_radius=6,
-            fg_color="transparent", hover_color=COR_CARD_INTERNO, text_color=COR_TEXTO_SECUNDARIO, font=fonte(16, "bold")
-        ).pack(side="left", padx=(0, 6), pady=3)
+            nav_mes, text="↻", width=32, height=28, corner_radius=6,
+            fg_color="transparent", hover_color=COR_CARD_INTERNO,
+            text_color=COR_TEXTO_SECUNDARIO, command=self.atualizar_dados
+        ).pack(side="left", padx=(0, 8), pady=3)
 
     # ==============================================================
     # 2. MÉTRICAS (3 CARDS COM MINI GRÁFICOS)
@@ -360,17 +335,14 @@ class LancamentoView(ctk.CTkFrame):
         grid.pack(fill="x", pady=(0, 14))
         grid.grid_columnconfigure((0, 1, 2), weight=1)
 
-        if self._usando_demo:
-            rec_tot, desp_tot, saldo_tot = 4850.0, 3290.0, 1560.0
-        else:
-            rec_tot = sum(i["valor"] for i in self._itens if i["tipo"] == "Receita")
-            desp_tot = sum(i["valor"] for i in self._itens if i["tipo"] == "Despesa")
-            saldo_tot = rec_tot - desp_tot
+        rec_tot = sum(i["valor"] for i in self._itens if i["tipo"] == "Receita")
+        desp_tot = sum(i["valor"] for i in self._itens if i["tipo"] == "Despesa")
+        saldo_tot = rec_tot - desp_tot
 
         cards_data = [
-            ("↑", "#0D2E2B", "#00D084", "Total de Receitas", f"R$ {_fmt_brl(rec_tot)}", "+12% em relação ao mês anterior", "barras", "#00D084"),
-            ("↓", "#2E151B", "#F43F5E", "Total de Despesas", f"R$ {_fmt_brl(desp_tot)}", "+8% em relação ao mês anterior", "barras", "#F43F5E"),
-            ("💳", "#122538", "#38BDF8", "Saldo Líquido", f"R$ {_fmt_brl(saldo_tot)}", "+28% em relação ao mês anterior", "linha", "#38BDF8"),
+            ("↑", "#0D2E2B", "#00D084", "Total de Receitas", f"R$ {_fmt_brl(rec_tot)}", "Registros da conta", "barras", "#00D084"),
+            ("↓", "#2E151B", "#F43F5E", "Total de Despesas", f"R$ {_fmt_brl(desp_tot)}", "Registros da conta", "barras", "#F43F5E"),
+            ("💳", "#122538", "#38BDF8", "Saldo Líquido", f"R$ {_fmt_brl(saldo_tot)}", "Receitas menos despesas", "linha", "#38BDF8"),
         ]
 
         for idx, (ic, bg_ic, cor_ic, tit, val, foot, tipo_spark, cor_spark) in enumerate(cards_data):
@@ -393,25 +365,12 @@ class LancamentoView(ctk.CTkFrame):
             ctk.CTkLabel(t_box, text=tit, font=fonte(11), text_color=COR_TEXTO_SECUNDARIO, anchor="w").pack(anchor="w")
             ctk.CTkLabel(t_box, text=val, font=fonte(18, "bold"), text_color=cor_ic, anchor="w").pack(anchor="w")
 
-            # Mini sparkline à direita
-            canvas_spark = tk.Canvas(row_top, width=50, height=34, bg=obter_cor(COR_CARD), highlightthickness=0)
-            canvas_spark.pack(side="right")
-
-            if tipo_spark == "barras":
-                alturas = [0.3, 0.5, 0.4, 0.7, 0.9, 0.6]
-                for b_i, h_p in enumerate(alturas):
-                    bx = b_i * 8 + 2
-                    by = 34 - (h_p * 26)
-                    canvas_spark.create_rectangle(bx, by, bx + 5, 34, fill=cor_spark, outline="")
-            else:
-                pts = [(2, 26), (12, 22), (22, 24), (32, 12), (42, 14), (48, 6)]
-                for p_i in range(len(pts) - 1):
-                    canvas_spark.create_line(pts[p_i][0], pts[p_i][1], pts[p_i + 1][0], pts[p_i + 1][1], fill=cor_spark, width=2)
+            # Não desenhar sparklines inventadas: os totais vêm do MySQL.
 
             # Footer
             ctk.CTkLabel(
                 card,
-                text=f"▲ {foot}",
+                text=foot,
                 font=fonte(10),
                 text_color=cor_ic,
                 anchor="w",
@@ -948,7 +907,7 @@ class LancamentoView(ctk.CTkFrame):
     # EXCLUSÃO
     # ==============================================================
     def _apagar_lancamento(self, item: Dict[str, Any]):
-        """Exclui um lançamento do banco de dados ou da lista de demonstração."""
+        """Exclui exclusivamente lançamentos que existem no MySQL."""
         descricao = item.get("descricao", "")
         if not messagebox.askyesno("Confirmar Exclusão", f"Deseja realmente apagar o lançamento '{descricao}'?"):
             return
@@ -960,10 +919,8 @@ class LancamentoView(ctk.CTkFrame):
                 self._notificar(f"Não foi possível excluir: {exc}", ok=False)
                 return
         else:
-            try:
-                self._demo_itens.remove(item)
-            except ValueError:
-                pass
+            self._notificar("Lançamento sem identificador no banco; exclusão cancelada.", ok=False)
+            return
 
         self._montar_tela()
         self._notificar("Lançamento excluído.")

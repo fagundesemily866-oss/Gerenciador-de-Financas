@@ -16,6 +16,7 @@ import customtkinter as ctk
 
 from dao.categoria_dao import CategoriaDAO
 from models.categoria import Categoria
+from services.visao_financeira import campo
 from views.notificacao_toast import GerenciadorNotificacoes
 from views.tema import (
     COR_CARD, COR_CARD_INTERNO, COR_BORDA, COR_TEXTO_PRINCIPAL,
@@ -118,21 +119,16 @@ class CategoriaView(ctk.CTkFrame):
         for c in range(4):
             grid.grid_columnconfigure(c, weight=1)
 
-        cards = [
-            ("📁", "#122538", "#38BDF8", "Total de Categorias", "12", "8 despesas • 4 receitas", None),
-            ("↓", "#2E151B", "#F43F5E", "Categorias de Despesas", "8", "R$ 2.850,00 em limites mensais", None),
-            ("↑", "#0D2E2B", "#00D084", "Categorias de Receitas", "4", "R$ 6.500,00 em metas mensais", None),
-            ("⏱", "#122538", "#38BDF8", "Uso do Orçamento", "68%", "R$ 1.930,00 de R$ 2.850,00", 0.68),
-        ]
-
-        # Atualizar com dados reais se existirem
         reais = self.dao.listar_todas()
-        if reais:
-            desp_count = sum(1 for c in reais if getattr(c, "tipo", "") == "Despesa")
-            rec_count = sum(1 for c in reais if getattr(c, "tipo", "") == "Receita")
-            cards[0] = ("📁", "#122538", "#38BDF8", "Total de Categorias", str(len(reais)), f"{desp_count} despesas • {rec_count} receitas", None)
-            cards[1] = ("↓", "#2E151B", "#F43F5E", "Categorias de Despesas", str(desp_count), "Limites configurados", None)
-            cards[2] = ("↑", "#0D2E2B", "#00D084", "Categorias de Receitas", str(rec_count), "Metas configuradas", None)
+        desp = [c for c in reais if campo(c, 'tipo', '') == 'Despesa']
+        rec = [c for c in reais if campo(c, 'tipo', '') == 'Receita']
+        limite = sum(float(campo(c, 'limite_orcamento', 0) or 0) for c in desp)
+        cards = [
+            ("📁", "#122538", "#38BDF8", "Total de Categorias", str(len(reais)), "Cadastradas no MySQL", None),
+            ("↓", "#2E151B", "#F43F5E", "Categorias de Despesas", str(len(desp)), "Somente desta conta", None),
+            ("↑", "#0D2E2B", "#00D084", "Categorias de Receitas", str(len(rec)), "Somente desta conta", None),
+            ("⏱", "#122538", "#38BDF8", "Limites mensais", f"R$ {limite:,.2f}", "Valores cadastrados", None),
+        ]
 
         for idx, (ic, bg_ic, cor_ic, tit, val, sub, prog_val) in enumerate(cards):
             card = ctk.CTkFrame(grid, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
@@ -175,8 +171,11 @@ class CategoriaView(ctk.CTkFrame):
         abas = ctk.CTkFrame(bar_f, fg_color=COR_CARD_INTERNO, corner_radius=8, height=32)
         abas.grid(row=0, column=0, sticky="w", padx=(0, 8))
 
-        for aba_txt in ["Todas (12)", "Despesas (8)", "Receitas (4)"]:
-            nome_p = aba_txt.split()[0]
+        atuais = self.dao.listar_todas()
+        qtd_despesas = sum(campo(c, "tipo") == "Despesa" for c in atuais)
+        qtd_receitas = sum(campo(c, "tipo") == "Receita" for c in atuais)
+        for nome_p, qtde in [("Todas", len(atuais)), ("Despesas", qtd_despesas), ("Receitas", qtd_receitas)]:
+            aba_txt = f"{nome_p} ({qtde})"
             ativo = (nome_p == self.filtro_tipo)
             ctk.CTkButton(
                 abas,
@@ -229,37 +228,28 @@ class CategoriaView(ctk.CTkFrame):
         ctk.CTkLabel(th, text="Progresso", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=110, anchor="w").pack(side="left")
         ctk.CTkLabel(th, text="Ações", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, anchor="e").pack(side="right", padx=(0, 6))
 
-        # Categorias da Referência
-        categorias_demo = [
-            ("🍴", "#2E151B", "Alimentação", "Despesa", "Pessoal", "R$ 700,00", 0.85, "85%", "#F43F5E"),
-            ("🏠", "#2E151B", "Moradia", "Despesa", "Pessoal", "R$ 1.200,00", 0.60, "60%", "#00D084"),
-            ("🚗", "#2E151B", "Transporte", "Despesa", "Pessoal", "R$ 300,00", 0.40, "40%", "#00D084"),
-            ("❤️", "#2E151B", "Saúde", "Despesa", "Pessoal", "R$ 250,00", 0.72, "72%", "#F59E0B"),
-            ("🎮", "#2E151B", "Lazer", "Despesa", "Pessoal", "R$ 200,00", 0.30, "30%", "#00D084"),
-            ("🎓", "#2E151B", "Educação", "Despesa", "Pessoal", "R$ 150,00", 0.20, "20%", "#00D084"),
-            ("⋯", "#2E151B", "Outros", "Despesa", "Pessoal", "R$ 50,00", 0.00, "0%", "#64748B"),
-            ("💵", "#0D2E2B", "Salário", "Receita", "Pessoal", "R$ 5.000,00", 1.00, "100%", "#00D084"),
-            ("📈", "#0D2E2B", "Investimentos", "Receita", "Pessoal", "R$ 1.000,00", 0.70, "70%", "#00D084"),
-            ("🎁", "#0D2E2B", "Bônus", "Receita", "Pessoal", "R$ 500,00", 0.60, "60%", "#00D084"),
-            ("💰", "#0D2E2B", "Renda Extra", "Receita", "Pessoal", "R$ 500,00", 0.00, "0%", "#64748B"),
-        ]
-
-        # Dados do banco
+        # Mostrar somente categorias reais do usuário autenticado.
+        categorias_demo = []
         reais = self.dao.listar_todas()
-        if reais:
-            reais_c = []
-            for cat in reais:
-                eh_rec = (getattr(cat, "tipo", "") == "Receita")
-                bg_i = "#0D2E2B" if eh_rec else "#2E151B"
-                cor_b = "#00D084" if eh_rec else "#F43F5E"
-                lim = getattr(cat, "limite_mensal", 0) or 0
-                cid = getattr(cat, "id", None)
-                reais_c.append((
-                    "🏷️", bg_i, getattr(cat, "nome", "Cat"), getattr(cat, "tipo", "Despesa"),
-                    getattr(cat, "escopo", "Pessoal"), f"R$ {lim:,.2f}", 0.5, "50%", cor_b, cid
-                ))
-            if reais_c:
-                categorias_demo = reais_c
+        from dao.lancamento_dao import LancamentoDAO
+        from services.visao_financeira import resumo, dinheiro
+        totais = dict(resumo(LancamentoDAO().listar_todos())["categorias"])
+        for cat in reais:
+            eh_rec = (campo(cat, "tipo", "") == "Receita")
+            nome = campo(cat, "nome", "Categoria")
+            lim = float(campo(cat, "limite_orcamento", 0) or 0)
+            gasto = totais.get(nome, 0) if not eh_rec else 0
+            progresso = min(1.0, gasto / lim) if lim > 0 else 0.0
+            categorias_demo.append((
+                "🏷️", "#0D2E2B" if eh_rec else "#2E151B", nome,
+                campo(cat, "tipo", "Despesa"), campo(cat, "escopo", "Pessoal"),
+                dinheiro(lim) if lim else "Sem limite", progresso,
+                f"{progresso:.0%}" if lim > 0 else "—",
+                "#00D084" if eh_rec or progresso < 1 else "#F43F5E", campo(cat, "id", None),
+            ))
+        if not categorias_demo:
+            ctk.CTkLabel(card_tab, text="Nenhuma categoria cadastrada nesta conta.",
+                         text_color=COR_TEXTO_SECUNDARIO, font=fonte(12)).pack(pady=22)
 
         if self.filtro_tipo != "Todas":
             tipo_alvo = "Despesa" if self.filtro_tipo == "Despesas" else "Receita"
@@ -476,13 +466,12 @@ class CategoriaView(ctk.CTkFrame):
         except Exception:
             lim = 0.0
 
-        nova = Categoria(
+        self.dao.inserir(
             nome=nom,
             tipo=tip,
             escopo=ctx,
-            limite_mensal=lim,
+            limite_orcamento=lim,
         )
-        self.dao.inserir(nova)
         self._limpar_form()
         self._montar_tela()
 

@@ -10,6 +10,7 @@ a View responsável deve chamar os métodos em thread separada para
 não travar a interface gráfica.
 """
 import os
+import time
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -58,6 +59,13 @@ class AIService:
         "gemini-flash-latest",
         "gemini-2.5-flash",
     ]
+
+    # Erros temporários da API (sobrecarga/instabilidade): vale tentar de novo.
+    _ERROS_TRANSITORIOS = (
+        "503", "UNAVAILABLE", "504", "DEADLINE_EXCEEDED", "high demand", "overloaded",
+    )
+    TENTATIVAS_POR_MODELO = 3
+    ESPERA_BASE_SEG = 1.5  # espera 1.5s, 3s... entre tentativas do mesmo modelo
 
     def __init__(self):
         self._api_key: Optional[str] = os.getenv("AI_API_KEY")
@@ -159,27 +167,98 @@ class AIService:
         if not mensagem or not mensagem.strip():
             return "Por favor, digite uma pergunta."
 
+        texto = mensagem.strip()
+        historico = self._historico()
+        ultimo_erro: Optional[Exception] = None
+
+        # Tenta o modelo atual (com novas tentativas) e, se a API continuar
+        # sobrecarregada ou o modelo não existir, passa para o próximo da lista.
+        for idx, modelo in enumerate(self._modelos_para_tentar()):
+            if idx > 0:
+                try:
+                    self._chat = self._criar_chat(modelo, historico)
+                except Exception as exc:
+                    ultimo_erro = exc
+                    continue
+
+            for tentativa in range(self.TENTATIVAS_POR_MODELO):
+                try:
+                    response = self._chat.send_message(texto)
+                    if modelo != self._model_name:
+                        self._model_name = modelo  # mantém o modelo que funcionou
+                    return response.text
+                except Exception as exc:
+                    ultimo_erro = exc
+                    msg_erro = str(exc)
+                    if self._eh_transitorio(msg_erro):
+                        if tentativa < self.TENTATIVAS_POR_MODELO - 1:
+                            time.sleep(self.ESPERA_BASE_SEG * (tentativa + 1))
+                        continue
+                    if "NOT_FOUND" in msg_erro or "is not found" in msg_erro:
+                        break  # modelo inexistente: tenta o próximo
+                    return self._mensagem_erro(exc)
+
+        if ultimo_erro is not None and self._eh_transitorio(str(ultimo_erro)):
+            return (
+                "⚠️ O serviço de IA (Gemini) está com alta demanda no momento. "
+                "Tentei algumas vezes e em outros modelos, sem sucesso.\n"
+                "Aguarde alguns instantes e envie a pergunta novamente."
+            )
+        return self._mensagem_erro(ultimo_erro or Exception("falha desconhecida"))
+
+    # ------------------------------------------------------------------
+    # Auxiliares de resiliência
+    # ------------------------------------------------------------------
+    @classmethod
+    def _eh_transitorio(cls, msg_erro: str) -> bool:
+        return any(t in msg_erro for t in cls._ERROS_TRANSITORIOS)
+
+    def _modelos_para_tentar(self) -> list:
+        """Modelo atual primeiro; depois os demais da lista de preferência."""
+        return [self._model_name] + [m for m in self.MODELOS_PREFERENCIAIS if m != self._model_name]
+
+    def _historico(self) -> list:
+        """Histórico da conversa atual (para não perdê-lo ao trocar de modelo)."""
         try:
-            response = self._chat.send_message(mensagem.strip())
-            return response.text
-        except Exception as exc:
-            msg_erro = str(exc)
-            # Tratamento de mensagens amigáveis em português
-            if "API_KEY_INVALID" in msg_erro or "API key not valid" in msg_erro:
-                return (
-                    "❌ Chave de API inválida.\n"
-                    "Verifique a chave informada no arquivo .env."
-                )
-            if "NOT_FOUND" in msg_erro or "is not found" in msg_erro:
-                return (
-                    f"❌ Modelo '{self._model_name}' não encontrado ou indisponível.\n"
-                    f"Detalhes: {msg_erro}"
-                )
-            if "RESOURCE_EXHAUSTED" in msg_erro or "429" in msg_erro:
-                return (
-                    "⚠️ Limite de requisições atingido. Por favor, aguarde alguns instantes."
-                )
-            return f"❌ Erro ao se comunicar com a IA: {msg_erro}"
+            if self._modo_novo_sdk:
+                return list(self._chat.get_history())
+            return list(self._chat.history)
+        except Exception:
+            return []
+
+    def _criar_chat(self, modelo: str, historico: Optional[list] = None):
+        if self._modo_novo_sdk:
+            return self._client.chats.create(
+                model=modelo,
+                config=genai_types.GenerateContentConfig(
+                    system_instruction=self.SYSTEM_INSTRUCTION
+                ),
+                history=historico or None,
+            )
+        model = legacy_genai.GenerativeModel(
+            model_name=modelo,
+            system_instruction=self.SYSTEM_INSTRUCTION,
+        )
+        return model.start_chat(history=historico or [])
+
+    def _mensagem_erro(self, exc: Exception) -> str:
+        """Traduz erros da API em mensagens amigáveis em português."""
+        msg_erro = str(exc)
+        if "API_KEY_INVALID" in msg_erro or "API key not valid" in msg_erro:
+            return (
+                "❌ Chave de API inválida.\n"
+                "Verifique a chave informada no arquivo .env."
+            )
+        if "NOT_FOUND" in msg_erro or "is not found" in msg_erro:
+            return (
+                f"❌ Modelo '{self._model_name}' não encontrado ou indisponível.\n"
+                f"Detalhes: {msg_erro}"
+            )
+        if "RESOURCE_EXHAUSTED" in msg_erro or "429" in msg_erro:
+            return (
+                "⚠️ Limite de requisições atingido. Por favor, aguarde alguns instantes."
+            )
+        return f"❌ Erro ao se comunicar com a IA: {msg_erro}"
 
     def resetar_conversa(self):
         """Reinicia o histórico de conversa."""

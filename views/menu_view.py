@@ -22,12 +22,13 @@ from views.tema import (
 
 # Mapa de imports lazy: chave -> (módulo, classe)
 _VIEWS_LAZY = {
+    "dashboard": ("views.painel_real_view", "DashboardRealView"),
     "saude": ("views.saude_financeira_view", "SaudeFinanceiraView"),
     "assistente_ia": ("views.assistente_ia_view", "AssistenteIAView"),
     "lancamento": ("views.lancamento_view", "LancamentoView"),
     "meta": ("views.meta_view", "MetaView"),
     "simulador": ("views.simulador_view", "SimuladorView"),
-    "relatorio": ("views.relatorio_view", "RelatorioView"),
+    "relatorio": ("views.painel_real_view", "RelatorioRealView"),
     "terceiro": ("views.terceiro_view", "TerceiroView"),
     "categoria": ("views.categoria_view", "CategoriaView"),
     "usuario": ("views.usuario_view", "UsuarioView"),
@@ -35,7 +36,7 @@ _VIEWS_LAZY = {
 
 
 # Telas pré-carregadas em segundo plano, na ordem de prioridade (a tela inicial,
-# "saude", já é construída na abertura). Critério: peso real em tempo de execução
+# "dashboard", já é construída na abertura). Critério: peso real em tempo de execução
 # (Lançamentos desenha ~12 widgets por lançamento; Relatório tem 3 canvases) e
 # probabilidade de ser a próxima tela aberta depois do Dashboard.
 _PRELOAD_ORDEM = ["lancamento", "relatorio", "meta", "simulador"]
@@ -101,7 +102,7 @@ class MenuView(ctk.CTkFrame):
         self.usuario_logado = usuario_logado or {
             "id": 1,
             "nome": "Usuário",
-            "email": "usuario@exemplo.com",
+            "email": "",
             "tipo_perfil": "PF",
         }
         self.on_logout = on_logout
@@ -120,7 +121,8 @@ class MenuView(ctk.CTkFrame):
 
         # Itens do menu (chave, rótulo, classe - carregada via lazy loading)
         self.itens_menu = [
-            ("saude", "📊  Dashboard & Saúde", None),
+            ("dashboard", "📊  Dashboard", None),
+            ("saude", "❤️  Saúde Financeira", None),
             ("assistente_ia", "🤖  Assistente IA", None),
             ("lancamento", "💰  Lançamentos", None),
             ("meta", "🎯  Metas", None),
@@ -133,7 +135,8 @@ class MenuView(ctk.CTkFrame):
 
         # Breve explicação de cada tela exibida no canto
         self.explicacoes_telas = {
-            "saude": "💡 Visão geral da saúde financeira, saldos e score mensal",
+            "dashboard": "💡 Resumo dos saldos, movimentações e metas",
+            "saude": "💡 Diagnóstico e score financeiro atualizados pelos lançamentos",
             "assistente_ia": "💡 Assistência inteligente e recomendações personalizadas",
             "lancamento": "💡 Registro e acompanhamento de receitas, despesas e fluxo",
             "meta": "💡 Planejamento de objetivos e progresso de economia para sonhos",
@@ -176,7 +179,7 @@ class MenuView(ctk.CTkFrame):
         self._build_conteudo()
 
         # Tela inicial
-        self.selecionar("saude")
+        self.selecionar("dashboard")
 
         # Adaptar layout quando a janela for redimensionada (ids guardados para desfazer no destroy)
         toplevel = self.winfo_toplevel()
@@ -307,6 +310,7 @@ class MenuView(ctk.CTkFrame):
 
     def _recolher_sidebar(self, reposicionar: bool = True):
         self._sidebar_expandida = False
+        self._nav_container.pack_configure(padx=1)
         # Oculta textos do logo
         for w in self._sidebar_texto_widgets:
             try:
@@ -332,6 +336,7 @@ class MenuView(ctk.CTkFrame):
 
     def _expandir_sidebar(self, animar: bool = False, reposicionar: bool = True):
         self._sidebar_expandida = True
+        self._nav_container.pack_configure(padx=12)
         # Restaura textos do logo
         for w in self._sidebar_texto_widgets:
             try:
@@ -474,7 +479,7 @@ class MenuView(ctk.CTkFrame):
         self.card_user.pack(fill="x", padx=14, pady=(0, 14))
         self.card_user.grid_columnconfigure(1, weight=1)
 
-        nome_completo = self.usuario_logado.get("nome", "Usuário Demo")
+        nome_completo = self.usuario_logado.get("nome", "Usuário")
         partes_nome = nome_completo.split()
         iniciais = (partes_nome[0][0] + (partes_nome[-1][0] if len(partes_nome) > 1 else "")).upper()
 
@@ -521,13 +526,17 @@ class MenuView(ctk.CTkFrame):
             widget.bind("<Button-1>", lambda e: self.selecionar("usuario"))
 
         # 3. CONTAINER COM OS BOTÕES DO MENU (ROLÁVEL SE NECESSÁRIO EM TELAS PEQUENAS)
-        nav_container = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        nav_container = ctk.CTkScrollableFrame(
+            self.sidebar, fg_color="transparent", corner_radius=0,
+            scrollbar_button_color=COR_CARD_INTERNO,
+            scrollbar_button_hover_color=COR_CARD_HOVER,
+        )
         nav_container.pack(fill="both", expand=True, padx=12, pady=0)
         self._nav_container = nav_container
 
         # Botões do Menu
         # Emojis para modo mini (sidebar recolhida)
-        _icones_menu = {"saude": "📊", "assistente_ia": "🤖", "lancamento": "💰",
+        _icones_menu = {"dashboard": "📊", "saude": "❤️", "assistente_ia": "🤖", "lancamento": "💰",
                         "meta": "🎯", "simulador": "🔮", "relatorio": "📄",
                         "terceiro": "🤝", "categoria": "🏷", "usuario": "👤"}
 
@@ -763,7 +772,7 @@ class MenuView(ctk.CTkFrame):
         # após criá-la, o que construía cada tela duas vezes na primeira visita.)
         if ja_existia and hasattr(self.view_atual, "atualizar_dados"):
             versao = Database.versao_dados()
-            if versao is None or versao != self._versao_view.get(chave):
+            if chave == "saude" or versao is None or versao != self._versao_view.get(chave):
                 try:
                     self.view_atual.atualizar_dados()
                 except Exception:

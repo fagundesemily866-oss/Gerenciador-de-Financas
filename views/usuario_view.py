@@ -97,10 +97,10 @@ class UsuarioView(ctk.CTkFrame):
         self.on_conta_excluida = on_conta_excluida
         self.usuario_atual = usuario_atual or {
             "id": 1,
-            "nome": "Usuário Demo",
-            "email": "demo@financeiro.com",
+            "nome": "Usuário",
+            "email": "",
             "tipo_perfil": "PF",
-            "data_criacao": "29 de setembro de 2026",
+            "data_criacao": date.today().strftime("%Y-%m-%d"),
         }
 
         # Avatar grande do perfil (label do círculo + imagem; a referência da imagem
@@ -308,8 +308,8 @@ class UsuarioView(ctk.CTkFrame):
         info_f = ctk.CTkFrame(inner, fg_color="transparent")
         info_f.grid(row=0, column=1, sticky="w")
 
-        ctk.CTkLabel(info_f, text=self.usuario_atual.get("nome", "Usuário Demo"), font=fonte(18, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w")
-        ctk.CTkLabel(info_f, text=self.usuario_atual.get("email", "demo@financeiro.com"), font=fonte(11), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w", pady=(2, 6))
+        ctk.CTkLabel(info_f, text=self.usuario_atual.get("nome", "Usuário"), font=fonte(18, "bold"), text_color=COR_TEXTO_PRINCIPAL, anchor="w").pack(anchor="w")
+        ctk.CTkLabel(info_f, text=self.usuario_atual.get("email", ""), font=fonte(11), text_color=COR_TEXTO_MUTED, anchor="w").pack(anchor="w", pady=(2, 6))
 
         data_longa, data_curta = _formatar_data(self.usuario_atual.get("data_criacao"))
 
@@ -389,7 +389,7 @@ class UsuarioView(ctk.CTkFrame):
         f_n.pack_propagate(False)
         ctk.CTkLabel(f_n, text="🢪", font=fonte(11)).pack(side="left", padx=8)
         self.entry_nome = ctk.CTkEntry(f_n, fg_color="transparent", border_width=0, font=fonte(11), text_color=COR_TEXTO_PRINCIPAL)
-        self.entry_nome.insert(0, self.usuario_atual.get("nome", "Usuário Demo"))
+        self.entry_nome.insert(0, self.usuario_atual.get("nome", "Usuário"))
         self.entry_nome.pack(side="left", fill="both", expand=True)
 
         # E-mail
@@ -399,7 +399,7 @@ class UsuarioView(ctk.CTkFrame):
         f_e.pack_propagate(False)
         ctk.CTkLabel(f_e, text="✉️", font=fonte(11)).pack(side="left", padx=8)
         self.entry_email = ctk.CTkEntry(f_e, fg_color="transparent", border_width=0, font=fonte(11), text_color=COR_TEXTO_PRINCIPAL)
-        self.entry_email.insert(0, self.usuario_atual.get("email", "demo@financeiro.com"))
+        self.entry_email.insert(0, self.usuario_atual.get("email", ""))
         self.entry_email.pack(side="left", fill="both", expand=True)
 
         # Renda Mensal

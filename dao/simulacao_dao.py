@@ -1,8 +1,7 @@
 """
-DAO (Data Access Object) de Simulações Financeiras.
-===================================================
+DAO (Data Access Object) de Simulações Financeiras — MySQL.
 
-Persistência e recuperação de simulações na tabela 'simulacoes' do SQLite.
+Tabela: simulacao
 """
 import json
 from datetime import datetime
@@ -11,6 +10,17 @@ from typing import List, Optional, Dict, Any
 from models.database import Database
 from services.sessao import resolver_usuario
 from models.simulacao import Simulacao
+
+
+_SELECT = """
+    id_simulacao    AS id,
+    id_usuario      AS usuario_id,
+    nome,
+    descricao,
+    parametros_json,
+    resultados_json,
+    criado_em       AS data_criacao
+"""
 
 
 class SimulacaoDAO:
@@ -32,49 +42,44 @@ class SimulacaoDAO:
         conn = self.db.get_connection()
         params_json = json.dumps(parametros or {}, ensure_ascii=False)
         res_json = json.dumps(resultados or {}, ensure_ascii=False)
-        data_criacao = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cursor = conn.execute(
             """
-            INSERT INTO simulacoes (usuario_id, nome, descricao, parametros_json, resultados_json, data_criacao)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO simulacao (id_usuario, nome, descricao, parametros_json, resultados_json)
+            VALUES (%s, %s, %s, %s, %s)
             """,
-            (
-                usuario_id,
-                nome.strip(),
-                descricao.strip(),
-                params_json,
-                res_json,
-                data_criacao,
-            ),
+            (usuario_id, nome.strip(), descricao.strip(), params_json, res_json),
         )
         conn.commit()
         return cursor.lastrowid
+
+    def _parse_json_fields(self, d: Dict) -> Dict:
+        """Decodifica campos JSON armazenados como string."""
+        for campo in ("parametros_json", "resultados_json"):
+            raw = d.get(campo)
+            chave = campo.replace("_json", "")  # parametros / resultados
+            if isinstance(raw, str):
+                try:
+                    d[chave] = json.loads(raw)
+                except Exception:
+                    d[chave] = {}
+            elif isinstance(raw, dict):
+                d[chave] = raw
+            else:
+                d[chave] = {}
+        return d
 
     def buscar_por_id(self, simulacao_id: int) -> Optional[Dict[str, Any]]:
         """Busca uma simulação pelo seu ID."""
         conn = self.db.get_connection()
         cursor = conn.execute(
-            """
-            SELECT id, usuario_id, nome, descricao, parametros_json, resultados_json, data_criacao
-            FROM simulacoes WHERE id = ?
-            """,
+            f"SELECT {_SELECT} FROM simulacao WHERE id_simulacao = %s",
             (simulacao_id,),
         )
         row = cursor.fetchone()
         if not row:
             return None
-
-        d = dict(row)
-        try:
-            d["parametros"] = json.loads(d.get("parametros_json") or "{}")
-        except Exception:
-            d["parametros"] = {}
-        try:
-            d["resultados"] = json.loads(d.get("resultados_json") or "{}")
-        except Exception:
-            d["resultados"] = {}
-        return d
+        return self._parse_json_fields(row)
 
     def listar_todas(self, usuario_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """Retorna todas as simulações cadastradas, ordenadas pela mais recente."""
@@ -82,36 +87,18 @@ class SimulacaoDAO:
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
-                """
-                SELECT id, usuario_id, nome, descricao, parametros_json, resultados_json, data_criacao
-                FROM simulacoes
-                WHERE usuario_id = ? OR usuario_id IS NULL
-                ORDER BY id DESC
+                f"""
+                SELECT {_SELECT} FROM simulacao
+                WHERE id_usuario = %s
+                ORDER BY id_simulacao DESC
                 """,
                 (usuario_id,),
             )
         else:
             cursor = conn.execute(
-                """
-                SELECT id, usuario_id, nome, descricao, parametros_json, resultados_json, data_criacao
-                FROM simulacoes
-                ORDER BY id DESC
-                """
+                f"SELECT {_SELECT} FROM simulacao ORDER BY id_simulacao DESC"
             )
-
-        lista = []
-        for row in cursor.fetchall():
-            d = dict(row)
-            try:
-                d["parametros"] = json.loads(d.get("parametros_json") or "{}")
-            except Exception:
-                d["parametros"] = {}
-            try:
-                d["resultados"] = json.loads(d.get("resultados_json") or "{}")
-            except Exception:
-                d["resultados"] = {}
-            lista.append(d)
-        return lista
+        return [self._parse_json_fields(r) for r in cursor.fetchall()]
 
     def atualizar(
         self,
@@ -128,9 +115,9 @@ class SimulacaoDAO:
 
         cursor = conn.execute(
             """
-            UPDATE simulacoes
-            SET nome = ?, descricao = ?, parametros_json = ?, resultados_json = ?
-            WHERE id = ?
+            UPDATE simulacao
+            SET nome = %s, descricao = %s, parametros_json = %s, resultados_json = %s
+            WHERE id_simulacao = %s
             """,
             (nome.strip(), descricao.strip(), params_json, res_json, simulacao_id),
         )
@@ -140,6 +127,6 @@ class SimulacaoDAO:
     def deletar(self, simulacao_id: int) -> bool:
         """Exclui uma simulação pelo ID."""
         conn = self.db.get_connection()
-        cursor = conn.execute("DELETE FROM simulacoes WHERE id = ?", (simulacao_id,))
+        cursor = conn.execute("DELETE FROM simulacao WHERE id_simulacao = %s", (simulacao_id,))
         conn.commit()
         return cursor.rowcount > 0

@@ -1,14 +1,22 @@
 """
-DAO (Data Access Object) de Saúde Financeira.
+DAO (Data Access Object) de Saúde Financeira — MySQL.
 
-Responsável por registrar diagnósticos e histórico da saúde financeira
-na tabela 'saude_financeira' do SQLite.
+Tabela: saude_financeira
 """
 from datetime import date
 from typing import List, Optional, Dict, Any
 from models.database import Database
 from services.sessao import resolver_usuario
 from models.saude_financeira import SaudeFinanceira
+
+
+_SELECT = """
+    id_saude          AS id,
+    id_usuario        AS usuario_id,
+    score,
+    plano_acao_json,
+    data_calculo      AS data_atualizacao
+"""
 
 
 class SaudeFinanceiraDAO:
@@ -30,8 +38,8 @@ class SaudeFinanceiraDAO:
         conn = self.db.get_connection()
         cursor = conn.execute(
             """
-            INSERT INTO saude_financeira (usuario_id, score, plano_acao_json, data_atualizacao)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO saude_financeira (id_usuario, score, plano_acao_json, data_calculo)
+            VALUES (%s, %s, %s, %s)
             """,
             (usuario_id, int(score), plano_acao_json, data_atualizacao),
         )
@@ -46,24 +54,21 @@ class SaudeFinanceiraDAO:
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
-                """
-                SELECT id, usuario_id, score, plano_acao_json, data_atualizacao
-                FROM saude_financeira
-                WHERE usuario_id = ?
-                ORDER BY id DESC LIMIT 1
+                f"""
+                SELECT {_SELECT} FROM saude_financeira
+                WHERE id_usuario = %s
+                ORDER BY id_saude DESC LIMIT 1
                 """,
                 (usuario_id,),
             )
         else:
             cursor = conn.execute(
-                """
-                SELECT id, usuario_id, score, plano_acao_json, data_atualizacao
-                FROM saude_financeira
-                ORDER BY id DESC LIMIT 1
+                f"""
+                SELECT {_SELECT} FROM saude_financeira
+                ORDER BY id_saude DESC LIMIT 1
                 """
             )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        return cursor.fetchone()
 
     def listar_historico(
         self, usuario_id: Optional[int] = None, limite: int = 10
@@ -73,31 +78,29 @@ class SaudeFinanceiraDAO:
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
-                """
-                SELECT id, usuario_id, score, plano_acao_json, data_atualizacao
-                FROM saude_financeira
-                WHERE usuario_id = ?
-                ORDER BY data_atualizacao DESC, id DESC
-                LIMIT ?
+                f"""
+                SELECT {_SELECT} FROM saude_financeira
+                WHERE id_usuario = %s
+                ORDER BY data_calculo DESC, id_saude DESC
+                LIMIT %s
                 """,
                 (usuario_id, limite),
             )
         else:
             cursor = conn.execute(
-                """
-                SELECT id, usuario_id, score, plano_acao_json, data_atualizacao
-                FROM saude_financeira
-                ORDER BY data_atualizacao DESC, id DESC
-                LIMIT ?
+                f"""
+                SELECT {_SELECT} FROM saude_financeira
+                ORDER BY data_calculo DESC, id_saude DESC
+                LIMIT %s
                 """,
                 (limite,),
             )
-        return [dict(row) for row in cursor.fetchall()]
+        return cursor.fetchall()
 
     def excluir(self, saude_id: int) -> bool:
         """Exclui um registro de saúde financeira pelo ID."""
         conn = self.db.get_connection()
-        cursor = conn.execute("DELETE FROM saude_financeira WHERE id = ?", (saude_id,))
+        cursor = conn.execute("DELETE FROM saude_financeira WHERE id_saude = %s", (saude_id,))
         conn.commit()
         return cursor.rowcount > 0
 
@@ -107,7 +110,7 @@ class SaudeFinanceiraDAO:
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
-                "SELECT COUNT(*) AS total FROM saude_financeira WHERE usuario_id = ?",
+                "SELECT COUNT(*) AS total FROM saude_financeira WHERE id_usuario = %s",
                 (usuario_id,),
             )
         else:

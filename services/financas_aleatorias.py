@@ -426,5 +426,5 @@ class GeradorFinancasAleatorias:
 
     def _marcar_modo_demo(self, usuario_id: int) -> None:
         conn = self.db.get_connection()
-        conn.execute("UPDATE usuarios SET modo_demo = 1 WHERE id = ?", (usuario_id,))
+        conn.execute("UPDATE usuario SET modo_demo = 1 WHERE id_usuario = %s", (usuario_id,))
         conn.commit()

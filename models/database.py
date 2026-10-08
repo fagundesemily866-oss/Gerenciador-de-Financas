@@ -1,203 +1,273 @@
 """
-Camada de infraestrutura de dados.
+Camada de infraestrutura de dados — MySQL.
+==========================================
 
-Responsável por abrir/gerenciar a conexão com o banco de dados SQLite
-e garantir que o schema (estrutura de tabelas) exista antes de qualquer uso.
+Responsável por abrir/gerenciar a conexão com o banco de dados MySQL
+``gerenciador_financeiro`` e garantir que tabelas auxiliares do app existam.
+
+Configuração via variáveis de ambiente (.env):
+    MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE
 """
 import os
-import sqlite3
+import re
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
+
+import mysql.connector
+
+
+# ======================================================================
+# Conversão de tipos MySQL → tipos Python compatíveis com a interface
+# que as views esperam (strings para datas, float para decimais).
+# ======================================================================
+
+def _convert_row(row):
+    """Converte uma linha (dict) retornada pelo MySQL para tipos Python simples."""
+    if row is None:
+        return None
+    result = {}
+    for key, value in row.items():
+        if isinstance(value, datetime):
+            result[key] = value.strftime("%Y-%m-%d %H:%M:%S")
+        elif isinstance(value, date):
+            result[key] = value.strftime("%Y-%m-%d")
+        elif isinstance(value, Decimal):
+            result[key] = float(value)
+        elif isinstance(value, (bytearray, bytes)):
+            result[key] = value.decode("utf-8")
+        else:
+            result[key] = value
+    return result
+
+
+class _CursorProxy:
+    """Proxy que converte tipos e devolve dicts (mesma interface do sqlite3.Row)."""
+
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    @property
+    def lastrowid(self):
+        return self._cursor.lastrowid
+
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        return _convert_row(row)
+
+    def fetchall(self):
+        return [_convert_row(r) for r in self._cursor.fetchall()]
+
+
+class _ConnectionProxy:
+    """Wrapper que expõe conn.execute()/conn.commit() no estilo SQLite."""
+
+    def __init__(self, mysql_conn):
+        self._conn = mysql_conn
+
+    def execute(self, query, params=None):
+        cursor = self._conn.cursor(dictionary=True, buffered=True)
+        cursor.execute(query, params or ())
+        return _CursorProxy(cursor)
+
+    def commit(self):
+        self._conn.commit()
+        Database._versao_contador += 1
+
+    def close(self):
+        try:
+            self._conn.close()
+        except Exception:
+            pass
 
 
 class Database:
-    """Gerencia a conexão e a estrutura do banco de dados SQLite."""
+    """Gerencia a conexão com o banco de dados MySQL."""
 
-    def __init__(self, db_path: str = "data/finance.db"):
-        self.db_path = db_path
-        self._connection: Optional[sqlite3.Connection] = None
-        self._ensure_directory_exists()
-        self._create_schema()
+    _versao_contador: int = 0
 
-    def _ensure_directory_exists(self) -> None:
-        """Cria o diretório do banco de dados caso ele ainda não exista."""
-        directory = os.path.dirname(self.db_path)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory, exist_ok=True)
+    def __init__(self):
+        self._proxy: Optional[_ConnectionProxy] = None
+
+    # ------------------------------------------------------------------
+    # Conexão
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _params() -> dict:
+        return dict(
+            host=os.getenv("MYSQL_HOST", "localhost"),
+            port=int(os.getenv("MYSQL_PORT", "3306")),
+            user=os.getenv("MYSQL_USER", "root"),
+            password=os.getenv("MYSQL_PASSWORD", ""),
+            charset="utf8mb4",
+        )
 
     @staticmethod
-    def versao_dados(db_path: str = "data/finance.db") -> Optional[tuple]:
-        """
-        Identificador barato do "estado" do arquivo do banco (mtime + tamanho).
-        Muda a cada commit; permite às telas saberem se precisam recarregar os dados
-        sem consultar o banco. Retorna None se o arquivo não puder ser lido.
-        """
+    def _nome_banco() -> str:
+        return os.getenv("MYSQL_DATABASE", "gerenciador_financeiro")
+
+    @classmethod
+    def _criar_banco_se_necessario(cls) -> None:
+        """Cria o schema (database) caso ele ainda não exista no servidor."""
+        raw = mysql.connector.connect(**cls._params())
         try:
-            info = os.stat(db_path)
-            return (info.st_mtime_ns, info.st_size)
-        except OSError:
-            return None
+            nome = cls._nome_banco().replace("`", "")
+            cur = raw.cursor()
+            cur.execute(
+                f"CREATE DATABASE IF NOT EXISTS `{nome}` "
+                "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            )
+            raw.commit()
+        finally:
+            raw.close()
 
-    def get_connection(self) -> sqlite3.Connection:
+    @staticmethod
+    def _configurar_sessao(raw) -> None:
+        """Faz cada consulta enxergar o que já foi gravado por outras conexões.
+
+        Cada DAO abre a sua própria conexão. No isolamento padrão do MySQL
+        (REPEATABLE READ) uma conexão que já leu dados continua vendo o "retrato"
+        antigo do banco até dar commit — então uma meta/lançamento criado em outra
+        tela não aparecia no Simulador. Com READ COMMITTED cada SELECT lê o dado
+        mais recente já confirmado.
         """
-        Retorna a conexão ativa com o banco de dados.
-        A conexão é criada de forma "lazy" (apenas na primeira chamada).
-        """
-        if self._connection is None:
-            self._connection = sqlite3.connect(self.db_path)
-            self._connection.execute("PRAGMA foreign_keys = ON")
-            # Permite acessar colunas por nome (ex.: row["description"])
-            self._connection.row_factory = sqlite3.Row
-        return self._connection
+        cur = raw.cursor()
+        try:
+            cur.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
+        finally:
+            cur.close()
 
-    def _create_schema(self) -> None:
-        """Cria as tabelas necessárias caso ainda não existam."""
-        connection = self.get_connection()
-        connection.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS transactions (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                description TEXT    NOT NULL,
-                value       REAL    NOT NULL,
-                type        TEXT    NOT NULL CHECK (type IN ('Receita', 'Despesa')),
-                category    TEXT    NOT NULL,
-                date        TEXT    NOT NULL
-            );
+    @classmethod
+    def _connect(cls):
+        try:
+            raw = mysql.connector.connect(
+                database=cls._nome_banco(), autocommit=False, **cls._params()
+            )
+        except mysql.connector.Error as exc:
+            if getattr(exc, "errno", None) != 1049:  # 1049 = banco desconhecido
+                raise
+            cls._criar_banco_se_necessario()
+            raw = mysql.connector.connect(
+                database=cls._nome_banco(), autocommit=False, **cls._params()
+            )
+        cls._configurar_sessao(raw)
+        return raw
 
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome         TEXT    NOT NULL,
-                email        TEXT    NOT NULL UNIQUE,
-                senha_hash   TEXT    NOT NULL,
-                tipo_perfil  TEXT    NOT NULL DEFAULT 'PF',
-                data_criacao TEXT    NOT NULL
-            );
+    def get_connection(self) -> _ConnectionProxy:
+        """Retorna a conexão ativa, reconectando se necessário."""
+        if self._proxy is not None:
+            try:
+                self._proxy._conn.ping(reconnect=False)
+            except Exception:
+                self._proxy = None
+        if self._proxy is None:
+            raw = self._connect()
+            self._proxy = _ConnectionProxy(raw)
+            self._ensure_schema()
+            self._ensure_extras()
+        return self._proxy
 
-            CREATE TABLE IF NOT EXISTS categorias (
-                id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                usuario_id       INTEGER,
-                nome             TEXT    NOT NULL,
-                tipo             TEXT    NOT NULL,
-                escopo           TEXT,
-                limite_orcamento REAL    DEFAULT 0.0,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS metas (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                usuario_id  INTEGER,
-                descricao   TEXT    NOT NULL,
-                valor_alvo  REAL    NOT NULL,
-                valor_atual REAL    DEFAULT 0.0,
-                prazo       TEXT,
-                data_limite TEXT,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS terceiros (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                usuario_id   INTEGER,
-                nome         TEXT    NOT NULL,
-                relacao      TEXT    NOT NULL,
-                data_criacao TEXT    NOT NULL,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS saude_financeira (
-                id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                usuario_id       INTEGER,
-                score            INTEGER NOT NULL,
-                plano_acao_json  TEXT,
-                data_atualizacao TEXT    NOT NULL,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS simulacoes (
-                id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                usuario_id       INTEGER,
-                nome             TEXT    NOT NULL,
-                descricao        TEXT,
-                parametros_json  TEXT    NOT NULL,
-                resultados_json  TEXT,
-                data_criacao     TEXT    NOT NULL,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
-            );
-            CREATE TABLE IF NOT EXISTS meta_aportes (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                meta_id     INTEGER NOT NULL,
-                valor       REAL    NOT NULL,
-                data        TEXT    NOT NULL,
-                FOREIGN KEY (meta_id) REFERENCES metas (id) ON DELETE CASCADE
-            );
-            """
-        )
-        connection.commit()
-        self._apply_migrations(connection)
-
-    def _apply_migrations(self, connection: sqlite3.Connection) -> None:
-        """Aplica alterações incrementais nas tabelas existentes preservando os dados."""
-        # 1. Tabela usuarios: foto_perfil e renda_mensal
-        cursor = connection.execute("PRAGMA table_info(usuarios)")
-        colunas_usuarios = [row["name"] for row in cursor.fetchall()]
-        if "foto_perfil" not in colunas_usuarios:
-            connection.execute("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT")
-        if "renda_mensal" not in colunas_usuarios:
-            connection.execute("ALTER TABLE usuarios ADD COLUMN renda_mensal REAL DEFAULT 0.0")
-
-        # 2. Tabela terceiros: foto_perfil
-        cursor = connection.execute("PRAGMA table_info(terceiros)")
-        colunas_terceiros = [row["name"] for row in cursor.fetchall()]
-        if "foto_perfil" not in colunas_terceiros:
-            connection.execute("ALTER TABLE terceiros ADD COLUMN foto_perfil TEXT")
-
-        # 3. Tabela metas: concluida, data_conclusao, celebracao_exibida
-        cursor = connection.execute("PRAGMA table_info(metas)")
-        colunas_metas = [row["name"] for row in cursor.fetchall()]
-        if "concluida" not in colunas_metas:
-            connection.execute("ALTER TABLE metas ADD COLUMN concluida INTEGER DEFAULT 0")
-        if "data_conclusao" not in colunas_metas:
-            connection.execute("ALTER TABLE metas ADD COLUMN data_conclusao TEXT")
-        if "celebracao_exibida" not in colunas_metas:
-            connection.execute("ALTER TABLE metas ADD COLUMN celebracao_exibida INTEGER DEFAULT 0")
-
-        # 4. Tabela usuarios: modo_demo (conta criada com "finanças aleatórias")
-        if "modo_demo" not in colunas_usuarios:
-            connection.execute("ALTER TABLE usuarios ADD COLUMN modo_demo INTEGER DEFAULT 0")
-
-        # 5. Tabela transactions: dono do lançamento, status e terceiro (opcionais)
-        cursor = connection.execute("PRAGMA table_info(transactions)")
-        colunas_transactions = [row["name"] for row in cursor.fetchall()]
-        if "usuario_id" not in colunas_transactions:
-            connection.execute("ALTER TABLE transactions ADD COLUMN usuario_id INTEGER REFERENCES usuarios (id) ON DELETE CASCADE")
-        if "status" not in colunas_transactions:
-            connection.execute("ALTER TABLE transactions ADD COLUMN status TEXT")
-        if "terceiro_id" not in colunas_transactions:
-            connection.execute("ALTER TABLE transactions ADD COLUMN terceiro_id INTEGER REFERENCES terceiros (id) ON DELETE SET NULL")
-
-        connection.commit()
-        self._migrar_dados_legados(connection)
-
-    def _migrar_dados_legados(self, connection: sqlite3.Connection) -> None:
-        """
-        Até esta versão os dados financeiros eram globais (sem dono). Uma única vez
-        (controlado por PRAGMA user_version) atribui os registros órfãos ao usuário
-        mais antigo, para que contas novas comecem realmente do zero.
-        """
-        versao = connection.execute("PRAGMA user_version").fetchone()[0]
-        if versao >= 1:
-            return
-        primeiro = connection.execute("SELECT MIN(id) AS id FROM usuarios").fetchone()["id"]
-        if primeiro is not None:
-            for tabela in ("transactions", "categorias", "metas", "terceiros", "simulacoes"):
-                connection.execute(
-                    f"UPDATE {tabela} SET usuario_id = ? WHERE usuario_id IS NULL",
-                    (primeiro,),
+    # ------------------------------------------------------------------
+    # Estrutura principal (usuario, categoria, lancamento, meta_reserva...)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _comandos_ddl() -> list:
+        """Lê migrations/ddl/*.sql e devolve os CREATE TABLE de forma idempotente."""
+        raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pasta = os.path.join(raiz, "migrations", "ddl")
+        if not os.path.isdir(pasta):
+            return []
+        comandos = []
+        for nome in sorted(os.listdir(pasta)):
+            if not nome.lower().endswith(".sql"):
+                continue
+            with open(os.path.join(pasta, nome), encoding="utf-8") as fh:
+                texto = fh.read()
+            texto = re.sub(r"--[^\n]*", "", texto)  # remove comentários de linha
+            for cmd in texto.split(";"):
+                cmd = cmd.strip()
+                if not cmd or re.match(r"(?i)^(CREATE\s+DATABASE|USE)\b", cmd):
+                    continue
+                cmd = re.sub(
+                    r"(?i)^CREATE\s+TABLE\s+(?!IF\s+NOT\s+EXISTS)",
+                    "CREATE TABLE IF NOT EXISTS ",
+                    cmd,
                 )
-            connection.commit()
-        connection.execute("PRAGMA user_version = 1")
-        connection.commit()
+                comandos.append(cmd)
+        return comandos
+
+    def _ensure_schema(self):
+        """Garante que as tabelas existam — contas e dados persistem sem passo manual."""
+        conn = self._proxy
+        for cmd in self._comandos_ddl():
+            conn.execute(cmd)
+        conn.commit()
+
+    # ------------------------------------------------------------------
+    # Tabelas auxiliares que o app precisa mas não estão no DDL original
+    # ------------------------------------------------------------------
+    def _ensure_extras(self):
+        conn = self._proxy
+
+        # meta_aporte — histórico de aportes em metas
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS meta_aporte (
+                id_aporte    INT AUTO_INCREMENT,
+                id_meta      INT NOT NULL,
+                valor        DECIMAL(10,2) NOT NULL,
+                data_aporte  DATE NOT NULL,
+                PRIMARY KEY (id_aporte),
+                FOREIGN KEY (id_meta) REFERENCES meta_reserva(id_meta) ON DELETE CASCADE
+            )
+        """)
+
+        # simulacao — cenários do simulador
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS simulacao (
+                id_simulacao    INT AUTO_INCREMENT,
+                id_usuario      INT NOT NULL,
+                nome            VARCHAR(100) NOT NULL,
+                descricao       VARCHAR(255),
+                parametros_json JSON,
+                resultados_json JSON,
+                criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id_simulacao),
+                FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
+            )
+        """)
+
+        # modo_demo em usuario (pode já existir; ignora o erro se existir)
+        try:
+            cursor = conn.execute("""
+                SELECT COUNT(*) AS cnt
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME   = 'usuario'
+                  AND COLUMN_NAME  = 'modo_demo'
+            """)
+            if cursor.fetchone()["cnt"] == 0:
+                conn.execute(
+                    "ALTER TABLE usuario ADD COLUMN modo_demo BOOLEAN NOT NULL DEFAULT FALSE"
+                )
+        except Exception:
+            pass
+
+        conn.commit()
+
+    # ------------------------------------------------------------------
+    # Versão de dados (para saber se as views precisam recarregar)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def versao_dados(**_kwargs) -> Optional[tuple]:
+        """Retorna um identificador que muda a cada commit."""
+        return (Database._versao_contador,)
 
     def close(self) -> None:
-        """Encerra a conexão com o banco de dados, se estiver aberta."""
-        if self._connection is not None:
-            self._connection.close()
-            self._connection = None
+        """Encerra a conexão com o banco de dados."""
+        if self._proxy is not None:
+            self._proxy.close()
+            self._proxy = None

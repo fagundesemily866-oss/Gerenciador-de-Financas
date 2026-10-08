@@ -121,17 +121,15 @@ class TerceiroView(ctk.CTkFrame):
         for c in range(4):
             grid.grid_columnconfigure(c, weight=1)
 
-        cards = [
-            ("👥", "#122538", "#38BDF8", "Total de contatos", "12", "▲ +2 este mês", None),
-            ("🚚", "#1C142E", "#A855F7", "Fornecedores", "5", "41,7% do total", 0.417),
-            ("👤", "#0D2E2B", "#00D084", "Clientes", "4", "33,3% do total", 0.333),
-            ("👨‍👩‍👧", "#291E10", "#F59E0B", "Familiares", "3", "25,0% do total", 0.25),
-        ]
-
-        # Ajustar com banco se houver
         reais = self.dao.listar_todos()
-        if reais:
-            cards[0] = ("👥", "#122538", "#38BDF8", "Total de contatos", str(len(reais)), "Cadastrados no banco", None)
+        def contar(rel):
+            return sum(1 for t in reais if str(t.get('relacao', '') if isinstance(t, dict) else getattr(t, 'relacao', '')) == rel)
+        cards = [
+            ("👥", "#122538", "#38BDF8", "Total de contatos", str(len(reais)), "Cadastrados na conta", None),
+            ("🚚", "#1C142E", "#A855F7", "Fornecedores", str(contar('Fornecedor')), "Cadastrados na conta", None),
+            ("👤", "#0D2E2B", "#00D084", "Clientes", str(contar('Cliente')), "Cadastrados na conta", None),
+            ("👨‍👩‍👧", "#291E10", "#F59E0B", "Familiares", str(contar('Familiar')), "Cadastrados na conta", None),
+        ]
 
         for idx, (ic, bg_ic, cor_ic, tit, val, sub, prog_val) in enumerate(cards):
             card = ctk.CTkFrame(grid, fg_color=COR_CARD, corner_radius=12, border_width=1, border_color=COR_BORDA)
@@ -245,37 +243,18 @@ class TerceiroView(ctk.CTkFrame):
         ctk.CTkLabel(th, text="Última atividade", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, width=100, anchor="w").pack(side="left")
         ctk.CTkLabel(th, text="Ações", font=fonte(10, "bold"), text_color=COR_TEXTO_MUTED, anchor="e").pack(side="right", padx=(0, 8))
 
-        # Lista de Contatos da Referência
-        contatos = [
-            ("🛒", "#2E151B", "Atacadão BH", "Atacado e Distribuição Ltda", "Fornecedor", "#A855F7", "#1C142E", "(31) 3300-1000", "vendas@atacadobh.com.br", "● 22/09/2025", "#00D084"),
-            ("a", "#291E10", "Amazon Brasil", "Amazon Serviços de Varejo", "Fornecedor", "#A855F7", "#1C142E", "0800 038 0541", "contato@amazon.com.br", "● 18/09/2025", "#F59E0B"),
-            ("FS", "#122538", "Carlos Silva", "Freelancer - Design", "Cliente", "#00D084", "#0D2E2B", "(31) 98811-2233", "carlos.silva@email.com", "● 25/09/2025", "#00D084"),
-            ("MS", "#2A1F18", "Casa do Marceneiro", "Móveis e Planejados", "Fornecedor", "#A855F7", "#1C142E", "(31) 3333-7788", "contato@casadomarceneiro.com.br", "● 10/09/2025", "#F43F5E"),
-            ("FO", "#1C142E", "Fernanda Oliveira", "Consultoria Financeira", "Cliente", "#00D084", "#0D2E2B", "(31) 98999-1122", "fernanda@oliveira.com", "● 21/09/2025", "#00D084"),
-            ("JS", "#0D2E2B", "João Silva", "Pai", "Familiar", "#F59E0B", "#291E10", "(31) 98765-4321", "joao.silva@email.com", "● 15/09/2025", "#F59E0B"),
-            ("it", "#291E10", "Itaú Unibanco", "Banco", "Fornecedor", "#A855F7", "#1C142E", "4004 4828", "relacionamento@itau.com.br", "● 20/09/2025", "#00D084"),
-            ("LM", "#2E1528", "Laura Mendes", "Cliente - Consultoria", "Cliente", "#00D084", "#0D2E2B", "(31) 99666-8877", "laura.mendes@email.com", "● 19/09/2025", "#00D084"),
-            ("BR", "#0D2E2B", "Petrobras", "Posto de Combustível", "Fornecedor", "#A855F7", "#1C142E", "0800 728 9001", "faleconosco@petrobras.com.br", "● 12/09/2025", "#F43F5E"),
-            ("MO", "#291E10", "Maria Oliveira", "Mãe", "Familiar", "#F59E0B", "#291E10", "(31) 98888-7766", "maria.oliveira@email.com", "● 05/09/2025", "#F43F5E"),
-            ("👨‍💼", "#102F33", "Lucas Almeida", "Desenvolvedor Sênior", "Funcionário", "#00D084", "#0D2E2B", "(31) 99123-4567", "lucas@empresa.com", "● Ativo", "#00D084"),
-            ("🏢", "#0F263E", "Escritório BH", "Sede Comercial", "Lugar", "#38BDF8", "#122538", "(31) 3200-9000", "contato@sede.com", "● Ativo", "#00D084"),
-        ]
-
-        # Contatos reais do banco se existirem
-        reais = self.dao.listar_todos()
-        if reais:
-            reais_c = []
-            for t in reais:
-                rel = getattr(t, "relacao", "Fornecedor")
-                cor_v = "#A855F7" if rel == "Fornecedor" else ("#00D084" if rel == "Cliente" else "#F59E0B")
-                bg_v = "#1C142E" if rel == "Fornecedor" else ("#0D2E2B" if rel == "Cliente" else "#291E10")
-                tid = getattr(t, "id", None)
-                reais_c.append((
-                    "👤", "#182A3A", getattr(t, "nome", "Contato"), "Contato Cadastrado",
-                    rel, cor_v, bg_v, "(31) 0000-0000", "contato@email.com", "● Ativo", "#00D084", tid
-                ))
-            if reais_c:
-                contatos = reais_c
+        # Exibir apenas contatos reais, sem nomes, telefones ou e-mails inventados.
+        contatos = []
+        for t in self.dao.listar_todos():
+            rel = t.get('relacao', 'Contato') if isinstance(t, dict) else getattr(t, 'relacao', 'Contato')
+            nom = t.get('nome', 'Contato') if isinstance(t, dict) else getattr(t, 'nome', 'Contato')
+            tid = t.get('id') if isinstance(t, dict) else getattr(t, 'id', None)
+            cor = '#A855F7' if rel == 'Fornecedor' else '#00D084'
+            contatos.append(('👤', '#182A3A', nom, 'Contato cadastrado', rel, cor,
+                             '#1C142E', '—', '—', '—', '#64748B', tid))
+        if not contatos:
+            ctk.CTkLabel(card_tab, text="Nenhum contato cadastrado nesta conta.",
+                         font=fonte(12), text_color=COR_TEXTO_SECUNDARIO).pack(pady=22)
 
         # Filtrar se aplicável
         if self.filtro_tipo != "Todos":
@@ -563,11 +542,9 @@ class TerceiroView(ctk.CTkFrame):
         if not nom:
             return
 
-        novo = Terceiro(
+        self.dao.inserir(
             nome=nom,
             relacao=self.tipo_vinculo,
-            data_criacao=date.today().strftime("%Y-%m-%d"),
         )
-        self.dao.inserir(novo)
         self._limpar_form()
         self._montar_tela()

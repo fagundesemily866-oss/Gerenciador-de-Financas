@@ -18,7 +18,7 @@ import customtkinter as ctk
 from dotenv import load_dotenv
 
 # Carrega variáveis de ambiente do .env (chave da API, etc.)
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 from models.database import Database
 from services.sessao import Sessao
@@ -73,12 +73,18 @@ class AppManager:
 
 def main() -> None:
     # ------------------------------------------------------------------
-    # 1. Inicializa o banco de dados (cria arquivo e schema se necessário)
+    # 1. Inicializa a conexão com o banco MySQL (DDL deve ter sido rodado)
     # ------------------------------------------------------------------
     try:
-        Database()
+        Database().get_connection()
     except Exception as exc:
-        print(f"[ERRO] Não foi possível inicializar o banco de dados: {exc}")
+        print(
+            f"[ERRO] Não foi possível conectar ao banco de dados MySQL: {exc}\n"
+            "Certifique-se de que:\n"
+            "  1. O MySQL está rodando\n"
+            "  2. O banco 'gerenciador_financeiro' existe (execute o DDL)\n"
+            "  3. As credenciais no arquivo .env estão corretas"
+        )
         sys.exit(1)
 
     # ------------------------------------------------------------------
@@ -114,4 +120,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main()

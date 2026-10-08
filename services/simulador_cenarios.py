@@ -89,7 +89,14 @@ def simular(
     saldo_inicial = sum(
         float(l["value"]) if l.get("type") == "Receita" else -float(l["value"]) for l in lancamentos
     )
-    metas_abertas = [m for m in metas if float(m.get("valor_atual") or 0) < float(m.get("valor_alvo") or 0)]
+    # Todas as metas são exibidas. Apenas as ainda não concluídas recebem
+    # aportes simulados; metas concluídas continuam visíveis com seu histórico real.
+    metas_abertas = [
+        m for m in metas
+        if not m.get("concluida")
+        and float(m.get("valor_alvo") or 0) > 0
+        and float(m.get("valor_atual") or 0) < float(m.get("valor_alvo") or 0)
+    ]
 
     cenarios: Dict[str, Dict[str, Any]] = {}
     for chave, aj in AJUSTES.items():
@@ -121,14 +128,18 @@ def simular(
         soma_pesos = sum(pesos.values()) or 1.0
         c["aporte_metas_mensal"] = aporte_total
         c["metas"] = []
-        for m in metas_abertas:
-            alvo, atual = float(m["valor_alvo"]), float(m["valor_atual"])
-            restante = alvo - atual
-            aporte = aporte_total * pesos[id(m)] / soma_pesos
-            meses = math.ceil(restante / aporte) if aporte > 0 else None
+        for m in metas:
+            alvo = float(m.get("valor_alvo") or 0)
+            atual = float(m.get("valor_atual") or 0)
+            concluida = bool(m.get("concluida")) or (alvo > 0 and atual >= alvo)
+            restante = max(0.0, alvo - atual)
+            aporte = (aporte_total * pesos[id(m)] / soma_pesos) if id(m) in pesos else 0.0
+            meses = 0 if concluida else (math.ceil(restante / aporte) if aporte > 0 else None)
             prazo = _prazo_meta(m, hoje)
             meses_prazo = _meses_ate(prazo, hoje) if prazo else None
-            if meses is None:
+            if concluida:
+                status = "concluida"
+            elif meses is None:
                 status = "sem_aporte"
             elif prazo is None:
                 status = "sem_prazo"
@@ -140,14 +151,19 @@ def simular(
                 status = "no_prazo"
             else:
                 status = "atrasada"
-            falta_no_prazo = max(0.0, restante - aporte * meses_prazo) if meses_prazo is not None else None
+            falta_no_prazo = (
+                max(0.0, restante - aporte * meses_prazo)
+                if meses_prazo is not None and not concluida else None
+            )
+            previsto = min(alvo, atual + aporte * horizonte)
             c["metas"].append({
                 "id": m.get("id"), "nome": m.get("descricao", "Meta"), "atual": atual, "alvo": alvo,
-                "pct_atual": atual / alvo * 100 if alvo else 0.0, "restante": restante,
+                "pct_atual": min(100.0, atual / alvo * 100) if alvo else 0.0,
+                "restante": restante, "concluida": concluida,
                 "aporte_mensal": aporte, "meses": meses, "meses_prazo": meses_prazo,
                 "prazo": prazo, "status": status, "falta_no_prazo": falta_no_prazo,
-                "valor_fim_horizonte": min(alvo, atual + aporte * horizonte),
-                "pct_fim_horizonte": min(alvo, atual + aporte * horizonte) / alvo * 100 if alvo else 0.0,
+                "valor_fim_horizonte": previsto,
+                "pct_fim_horizonte": previsto / alvo * 100 if alvo else 0.0,
             })
 
     plan = cenarios["planejado"]
@@ -189,6 +205,8 @@ def _consequencias(c, plan, chave, base, horizonte, corte, renda_extra, aporte_m
 def frase_meta(m: Dict[str, Any], cenario: str) -> str:
     """Frase curta e clara para o usuário, ex.: 'Neste cenário, esta meta ficará atrasada.'"""
     s = m["status"]
+    if s == "concluida":
+        return "Esta meta já foi concluída; os cenários não alteram seu valor atual."
     if s == "antes":
         return f"Neste cenário {cenario}, esta meta será atingida antes do prazo."
     if s == "no_prazo":

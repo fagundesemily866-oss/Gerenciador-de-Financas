@@ -1,13 +1,23 @@
 """
-DAO (Data Access Object) de Terceiros.
+DAO (Data Access Object) de Terceiros — MySQL.
 
-Responsável por operações de persistência e consulta na tabela 'terceiros' do SQLite.
+Tabela: terceiro
 """
 from datetime import date
 from typing import List, Optional, Dict, Any
 from models.database import Database
 from services.sessao import resolver_usuario
 from models.terceiro import Terceiro
+
+
+_SELECT = """
+    id_terceiro  AS id,
+    id_usuario   AS usuario_id,
+    nome,
+    relacao,
+    criado_em    AS data_criacao,
+    foto_perfil
+"""
 
 
 class TerceiroDAO:
@@ -25,15 +35,14 @@ class TerceiroDAO:
         foto_perfil: Optional[str] = None,
     ) -> int:
         """Insere um novo terceiro e retorna o ID gerado."""
-        data_criacao = data_criacao or date.today().strftime("%Y-%m-%d")
         usuario_id = resolver_usuario(usuario_id)
         conn = self.db.get_connection()
         cursor = conn.execute(
             """
-            INSERT INTO terceiros (usuario_id, nome, relacao, data_criacao, foto_perfil)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO terceiro (id_usuario, nome, relacao, foto_perfil)
+            VALUES (%s, %s, %s, %s)
             """,
-            (usuario_id, nome.strip(), relacao.strip(), data_criacao, foto_perfil),
+            (usuario_id, nome.strip(), relacao.strip(), foto_perfil),
         )
         conn.commit()
         return cursor.lastrowid
@@ -42,11 +51,10 @@ class TerceiroDAO:
         """Busca um terceiro pelo ID."""
         conn = self.db.get_connection()
         cursor = conn.execute(
-            "SELECT id, usuario_id, nome, relacao, data_criacao, foto_perfil FROM terceiros WHERE id = ?",
+            f"SELECT {_SELECT} FROM terceiro WHERE id_terceiro = %s",
             (terceiro_id,),
         )
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        return cursor.fetchone()
 
     def listar_todos(self, usuario_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """Retorna todos os terceiros cadastrados."""
@@ -54,23 +62,18 @@ class TerceiroDAO:
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
-                """
-                SELECT id, usuario_id, nome, relacao, data_criacao, foto_perfil
-                FROM terceiros
-                WHERE usuario_id = ? OR usuario_id IS NULL
+                f"""
+                SELECT {_SELECT} FROM terceiro
+                WHERE id_usuario = %s
                 ORDER BY nome ASC
                 """,
                 (usuario_id,),
             )
         else:
             cursor = conn.execute(
-                """
-                SELECT id, usuario_id, nome, relacao, data_criacao, foto_perfil
-                FROM terceiros
-                ORDER BY nome ASC
-                """
+                f"SELECT {_SELECT} FROM terceiro ORDER BY nome ASC"
             )
-        return [dict(row) for row in cursor.fetchall()]
+        return cursor.fetchall()
 
     def atualizar(self, terceiro_id: int, nome: str, relacao: str, foto_perfil: Optional[str] = None) -> bool:
         """Atualiza informações do terceiro."""
@@ -78,18 +81,16 @@ class TerceiroDAO:
         if foto_perfil is not None:
             cursor = conn.execute(
                 """
-                UPDATE terceiros
-                SET nome = ?, relacao = ?, foto_perfil = ?
-                WHERE id = ?
+                UPDATE terceiro SET nome = %s, relacao = %s, foto_perfil = %s
+                WHERE id_terceiro = %s
                 """,
                 (nome.strip(), relacao.strip(), foto_perfil, terceiro_id),
             )
         else:
             cursor = conn.execute(
                 """
-                UPDATE terceiros
-                SET nome = ?, relacao = ?
-                WHERE id = ?
+                UPDATE terceiro SET nome = %s, relacao = %s
+                WHERE id_terceiro = %s
                 """,
                 (nome.strip(), relacao.strip(), terceiro_id),
             )
@@ -100,7 +101,7 @@ class TerceiroDAO:
         """Atualiza ou remove a foto do terceiro."""
         conn = self.db.get_connection()
         cursor = conn.execute(
-            "UPDATE terceiros SET foto_perfil = ? WHERE id = ?",
+            "UPDATE terceiro SET foto_perfil = %s WHERE id_terceiro = %s",
             (caminho_foto, terceiro_id),
         )
         conn.commit()
@@ -109,7 +110,7 @@ class TerceiroDAO:
     def excluir(self, terceiro_id: int) -> bool:
         """Exclui um terceiro pelo ID."""
         conn = self.db.get_connection()
-        cursor = conn.execute("DELETE FROM terceiros WHERE id = ?", (terceiro_id,))
+        cursor = conn.execute("DELETE FROM terceiro WHERE id_terceiro = %s", (terceiro_id,))
         conn.commit()
         return cursor.rowcount > 0
 
@@ -119,9 +120,9 @@ class TerceiroDAO:
         conn = self.db.get_connection()
         if usuario_id is not None:
             cursor = conn.execute(
-                "SELECT COUNT(*) AS total FROM terceiros WHERE usuario_id = ? OR usuario_id IS NULL",
+                "SELECT COUNT(*) AS total FROM terceiro WHERE id_usuario = %s",
                 (usuario_id,),
             )
         else:
-            cursor = conn.execute("SELECT COUNT(*) AS total FROM terceiros")
+            cursor = conn.execute("SELECT COUNT(*) AS total FROM terceiro")
         return cursor.fetchone()["total"] > 0
